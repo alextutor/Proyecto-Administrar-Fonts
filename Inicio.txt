@@ -1,0 +1,26 @@
+Abrir el CMD 
+---------------
+--> La forma más rápida de abrir el CMD directamente en una carpeta específica es usando el Explorador de Archivos. 
+Solo debes entrar a la carpeta deseada, hacer clic en la barra de direcciones superior, escribir cmd y presionar Enter.
+--> En Windows 10: Mantén presionada la tecla Mayús (Shift), haz clic derecho en un espacio vacío y elige "Abrir ventana de comandos aquí"
+
+Para trabajar con archivos .py descargar python
+---------------------------------------------
+Desde el cmd o PowerShell
+
+1) Instalar python  	---> 	https://www.python.org/about/
+2) Instalar Pillow  	---> 	pip install Pillow
+3) ejecutar el archivo 	--->  	python gestor_fuentes_Mod_v9-2.py
+
+
+Por Realizar
+-----------------------------------
+1) ¿Deseas que añadamos ahora una funcionalidad de limpieza automática de papelera (ej. borrar los JSON más antiguos de 30 días) 
+2) prefieres saltar a la exportación de reportes CSV?
+3) ¿Qué sigue? Según nuestro plan original, el siguiente punto lógico es la función de "Exportar Reporte (CSV)" 
+   utilizando la self.ruta_reporte que ahora ya podemos configurar. ¿Te parece bien si definimos la estructura del CSV ahora?
+
+
+Error
+------------------
+AttributeError: 'FontManagerApp' object has no attribute 'abrir_ventana_configuracion'

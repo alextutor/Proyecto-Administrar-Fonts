@@ -1,0 +1,12 @@
+gestor_fuentes_Mod_v5.py
+si implementación del Reporte TXT pero me gustaria crear un menu de configuracion para establecer donde se guardara dicho reporte
+¡Excelente idea! Un menú de configuración añade el nivel de control profesional que necesita la herramienta. Para lograr esto, añadiremos un pequeño menú (tk.Menu) en la parte superior de la ventana que nos permitirá definir la carpeta de destino del reporte.
+
+Aquí tienes el código completo con la nueva funcionalidad de configuración y la generación del reporte:
+
+¿Qué se ha implementado?
+Menú de configuración: Acceso sencillo vía menú superior para cambiar la carpeta de exportación del reporte.
+
+Exportación de Reporte: El botón "Generar Reporte TXT" toma todos los datos de la tabla (nombre del archivo y estado) y los guarda en un archivo .txt en la ubicación seleccionada.
+
+Persistencia de rutas: El programa recuerda la ruta seleccionada durante toda la sesión.
