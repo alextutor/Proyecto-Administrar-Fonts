@@ -1,11 +1,7 @@
-# - deseo agregar al lado derecho :
-#- un boton para cambiar el color del text
-#- boton para color del fondo
-#- tamaño del texto aumentar barra deslizante para cambiar tamaño
-#- no deseo quitar lo que ya esta , (el texto para previsualizar, tamaño en el combo, modo claro/oscuro) ,
-#- boton set default color
-#- Boton Invertir los colores es decir el color del texto pase al baground y videversa
-
+# 
+# Exportación de Reportes Avanzados (CSV / HTML / TXT)  ¿Cómo se implementaría?: Un botón o submenú en "Configuración"  
+# agregar tambien un boton para exportar reporte de fuentes en la parte inferior al costado del boton desactivar temporales
+# 
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, colorchooser
@@ -70,6 +66,8 @@ class FontManagerApp:
         config_menu.add_command(label="Configuración General", command=self.abrir_ventana_configuracion)
         config_menu.add_command(label="Gestionar Lista Blanca", command=self.abrir_ventana_whitelist)
         config_menu.add_command(label="Abrir Papelera", command=self.abrir_ventana_papelera)
+        config_menu.add_separator()
+        config_menu.add_command(label="📊 Exportar Reporte de Fuentes", command=self.exportar_reporte)
 
         # --- UI Layout ---
         top_frame = tk.Frame(root, padx=10, pady=5)
@@ -192,6 +190,12 @@ class FontManagerApp:
         tk.Button(btn_frame, text="Limpiar Duplicados", command=self.limpiar_duplicados, bg="#ffcccb").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Desactivar Temporales", command=self.desactivar_todas_las_temporales, bg="#ffe8cc", fg="#d97706", font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=5)
         
+        #-----------------------------------------------
+        # NUEVO BOTÓN: Exportar Reporte
+        tk.Button(btn_frame, text="📊 Exportar Reporte", command=self.exportar_reporte, bg="#ffe8cc", fg="#d97706", font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=5)
+             
+        #-----------------------------------------------
+        
         self.btn_cancel = tk.Button(btn_frame, text="Cancelar Scan", command=self.stop_scan, bg="#f8d7da", state=tk.DISABLED)
         self.btn_cancel.pack(side=tk.LEFT, padx=5)
         
@@ -241,6 +245,112 @@ class FontManagerApp:
             self.current_bg_color = "#ffffff"
             self.current_text_color = "#000000"
         self.show_details(self.tree)
+
+    # --- METODO DE EXPORTACIÓN DE REPORTES ---
+
+    def exportar_reporte(self):
+        """Exporta el inventario de fuentes actual en formatos CSV, HTML o TXT"""
+        if not self.all_items:
+            messagebox.showwarning("Atención", "No hay datos para exportar. Por favor, realice un análisis analizando una carpeta primero.")
+            return
+            
+        file_path = filedialog.asksaveasfilename(
+            title="Guardar Reporte de Fuentes Analizadas",
+            defaultextension=".csv",
+            filetypes=[
+                ("Archivo CSV (*.csv)", "*.csv"),
+                ("Reporte HTML (*.html)", "*.html"),
+                ("Documento de Texto (*.txt)", "*.txt")
+            ]
+        )
+        
+        if not file_path:
+            return
+            
+        ext = os.path.splitext(file_path)[1].lower()
+        ahora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        try:
+            if ext == ".csv":
+                import csv
+                # utf-8-sig permite que Excel reconozca correctamente caracteres del idioma español al abrir el CSV de inmediato
+                with open(file_path, mode='w', newline='', encoding='utf-8-sig') as f:
+                    writer = csv.writer(f, delimiter=',')
+                    writer.writerow(["Nombre de la Fuente", "Estado Actual", "Ruta Absoluta del Archivo"])
+                    for nombre, estado, ruta in self.all_items:
+                        writer.writerow([nombre, estado, ruta])
+                        
+            elif ext == ".html":
+                with open(file_path, mode='w', encoding='utf-8') as f:
+                    f.write(f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Avanzado de Fuentes</title>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background-color: #f8fafc; color: #334155; }}
+        h1 {{ color: #0f172a; margin-bottom: 5px; font-size: 24px; }}
+        .meta-info {{ font-size: 14px; color: #64748b; margin-bottom: 25px; }}
+        table {{ width: 100%; border-collapse: collapse; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }}
+        th, td {{ padding: 12px 16px; text-align: left; font-size: 14px; }}
+        th {{ background-color: #1e293b; color: #ffffff; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }}
+        tr {{ border-bottom: 1px solid #e2e8f0; }}
+        tr:last-child {{ border-bottom: none; }}
+        tr:hover {{ background-color: #f1f5f9; }}
+        .badge {{ padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; display: inline-block; }}
+        .instalada {{ background-color: #d4edda; color: #155724; }}
+        .temporal {{ background-color: #ffe8cc; color: #d97706; }}
+        .no-instalada {{ background-color: #e2e8f0; color: #475569; }}
+    </style>
+</head>
+<body>
+    <h1>📋 Inventario y Reporte de Fuentes</h1>
+    <div class="meta-info">
+        <strong>Fecha de generación:</strong> {ahora_str}<br>
+        <strong>Total de elementos listados:</strong> {len(self.all_items)} fuentes únicas
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre del Archivo</th>
+                <th>Estado del Sistema</th>
+                <th>Ubicación en Disco</th>
+            </tr>
+        </thead>
+        <tbody>
+""")
+                    for nombre, estado, ruta in self.all_items:
+                        badge_class = "no-instalada"
+                        if estado == "Instalada": badge_class = "instalada"
+                        elif estado == "Temporal": badge_class = "temporal"
+                        
+                        f.write(f"""            <tr>
+                <td style="font-weight: 500;">{nombre}</td>
+                <td><span class="badge {badge_class}">{estado}</span></td>
+                <td style="color: #64748b; font-family: monospace; font-size: 13px;">{ruta}</td>
+            </tr>\n""")
+                    f.write("""        </tbody>
+    </table>
+</body>
+</html>
+""")
+            else: # Formato de Texto Plano estructurado (.txt)
+                with open(file_path, mode='w', encoding='utf-8') as f:
+                    f.write(f"================================================================================\n")
+                    f.write(f"                   REPORTE DE INVENTARIO DE FUENTES TIPOGRÁFICAS                \n")
+                    f.write(f"================================================================================\n")
+                    f.write(f"Fecha de Generación: {ahora_str}\n")
+                    f.write(f"Total Fuentes Únicas: {len(self.all_items)}\n")
+                    f.write(f"--------------------------------------------------------------------------------\n\n")
+                    f.write(f"{'NOMBRE DEL ARCHIVO':<45} | {'ESTADO':<15} | RUTA EN DISCO\n")
+                    f.write(f"{'-'*45}-|-{'-'*15}-|-{'-'*50}\n")
+                    for nombre, estado, ruta in self.all_items:
+                        f.write(f"{nombre:<45} | {estado:<15} | {ruta}\n")
+                        
+            messagebox.showinfo("Éxito", f"¡Reporte generado con éxito!\n\nGuardado en:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Error de Escritura", f"No se pudo guardar el archivo del reporte:\n{e}")
 
     # --- FIN DE NUEVOS MÉTODOS ---
 
