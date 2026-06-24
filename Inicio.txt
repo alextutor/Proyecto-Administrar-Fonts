@@ -24,3 +24,23 @@ Por Realizar
 Error
 ------------------
 AttributeError: 'FontManagerApp' object has no attribute 'abrir_ventana_configuracion'
+
+
+
+
+Ahora que ya tienes la estructura de colores estable, el siguiente paso lógico es implementar las acciones reales (que realmente instalen o activen la fuente usando las APIs de Windows) y llamar a self.actualizar_estados_visuales() cada vez que una de esas acciones termine.
+
+¿Quieres que procedamos a implementar el método activar_temporal (usando AddFontResourceExW) y instalar_fuente para completar el ciclo?
+
+
+
+Traceback (most recent call last):
+  File "E:\Proyectos-IA\Gemini\Proyecto-Administrar-Fonts-main\gestor_fuentes_Mo
+d_v9-6-Opti.py", line 601, in <module>
+    app = FontManagerApp(root)
+  File "E:\Proyectos-IA\Gemini\Proyecto-Administrar-Fonts-main\gestor_fuentes_Mo
+d_v9-6-Opti.py", line 63, in __init__
+    self.tree.insert("", "end", values=(nombre, ruta), tags=('instalada',))
+    ^^^^^^^^^
+AttributeError: 'FontManagerApp' object has no attribute 'tree'
+
