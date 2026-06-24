@@ -16,3 +16,9 @@ def añadir_a_coleccion(self):
         win.geometry("300x150")
         win.grab_set()
         
+
+Preparar Modal
+--------------------------------------
+def abrir_ventana_configuracion(self):
+        win = self._preparar_modal("Configuración General", 600, 250)
+        win.columnconfigure(1, weight=1)
