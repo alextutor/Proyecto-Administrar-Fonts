@@ -1,6 +1,6 @@
-# Implementamos en la parte inferior un boton  Desactivación Rápida de Fuentes Temporales (Limpiar Memoria). (Limpia todas la fuentes temporales que hemos cargado )
-# al costado de cancelar scan
-# es diferente al hacer click derecho en cada uno de las fuentes 
+#a la hora de escoger la carpeta de fuentes y analizarlo deseo que haya un check o interruptor 
+#al costado de la ruta de fuentes para que me indique si se busca o no subcarpetas
+
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -67,7 +67,12 @@ class FontManagerApp:
         top_frame.pack(fill=tk.X)
         self.path_entry = tk.Entry(top_frame)
         self.path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-        tk.Button(top_frame, text="Carpeta Fuentes", command=self.browse).pack(side=tk.LEFT)
+        tk.Button(top_frame, text="Carpeta Fuentes", command=self.browse).pack(side=tk.LEFT, padx=5)
+        
+        # NUEVO: Checkbox para controlar la búsqueda recursiva en subcarpetas
+        self.buscar_subcarpetas_var = tk.BooleanVar(value=True)
+        self.chk_subcarpetas = tk.Checkbutton(top_frame, text="Incluir subcarpetas", variable=self.buscar_subcarpetas_var)
+        self.chk_subcarpetas.pack(side=tk.LEFT, padx=5)
 
         # --- Buscador y Filtros ---
         search_frame = tk.Frame(root, padx=10, pady=5)
@@ -105,11 +110,32 @@ class FontManagerApp:
         self.setup_context_menu(self.tree)
         self.tree.bind("<<TreeviewSelect>>", lambda e: self.show_details(self.tree))
 
+        #------------------------Modo de Vista Previa con Texto Personalizado--------------------------------------------
+        # Panel derecho superior)
         preview_frame = tk.Frame(h_paned)
         h_paned.add(preview_frame, width=800)
-        tk.Label(preview_frame, text="Vista Previa", font=("Arial", 10, "bold")).pack(anchor="w")
+        
+        # Contenedor superior de la vista previa para el título y el cuadro de entrada
+        preview_top_bar = tk.Frame(preview_frame, pady=2)
+        preview_top_bar.pack(fill=tk.X, anchor="w")
+        
+        tk.Label(preview_top_bar, text="Vista Previa", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 15))
+        tk.Label(preview_top_bar, text="Texto personalizado:", font=("Arial", 9)).pack(side=tk.LEFT)
+        
+        # Variable y Entry para el texto de prueba personalizado
+        self.custom_text_var = tk.StringVar()
+        self.custom_text_entry = tk.Entry(preview_top_bar, textvariable=self.custom_text_var, font=("Arial", 10), width=45)
+        self.custom_text_entry.pack(side=tk.LEFT, padx=5)
+        
+        # Vinculación en tiempo real: al escribir o borrar, se vuelve a renderizar la vista previa
+        self.custom_text_entry.bind("<KeyRelease>", lambda e: self.show_details(self.tree))
+
+        # Etiqueta que contendrá la imagen generada por PIL
         self.preview_lbl = tk.Label(preview_frame, text="Selecciona una fuente", bg="white", relief="sunken")
         self.preview_lbl.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        #---------------------Modo de Vista Previa con Texto Personalizado-----------------------------------------------
+        
 
         # Panel Inferior
         bot_panel = tk.Frame(paned)
@@ -141,6 +167,8 @@ class FontManagerApp:
         self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
         self.lbl_percent = tk.Label(btn_frame, text="0%")
         self.lbl_percent.pack(side=tk.LEFT, padx=5)
+        
+ 
     
     def es_administrador(self):
         try:
@@ -256,7 +284,20 @@ class FontManagerApp:
     def scan_logic(self):
         ruta = self.path_entry.get()
         seen = {}
-        files = [os.path.join(r, f) for r, _, fs in os.walk(ruta) for f in fs if f.lower().endswith(('.ttf', '.otf'))]
+        
+        # Filtrado condicional según el estado del Checkbutton
+        try:
+            if self.buscar_subcarpetas_var.get():
+                # Búsqueda recursiva clásica
+                files = [os.path.join(r, f) for r, _, fs in os.walk(ruta) for f in fs if f.lower().endswith(('.ttf', '.otf'))]
+            else:
+                # Solo buscar en el directorio raíz seleccionado (sin subcarpetas)
+                files = [os.path.join(ruta, f) for f in os.listdir(ruta) if os.path.isfile(os.path.join(ruta, f)) and f.lower().endswith(('.ttf', '.otf'))]
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror("Error", f"No se pudo leer la carpeta:\n{e}"))
+            self.root.after(0, lambda: self.btn_cancel.config(state=tk.DISABLED))
+            return
+            
         total = len(files)
         
         if total == 0:
@@ -445,7 +486,7 @@ class FontManagerApp:
             # 4. Avisar al entorno global Windows
             ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
             
-            messagebox.showinfo("Éxito", "La fuente ha sido retirada del sistema por completo.")
+            messagebox.showinfo("Éxito", "La fuente ha sido registrada del sistema por completo.")
             self.actualizar_item_maestro(path, "No Instalada")
             self.filtrar_fuentes()
             
@@ -504,14 +545,37 @@ class FontManagerApp:
 
     def delete_item(self):
         sel = self.tree.selection()
-        if not sel: return
+        if not sel: 
+            return
 
-        path = self.tree.item(sel[0])['values'][2]
-        self._mover_a_papelera(path)
-        self.tree.delete(sel[0])
+        # 1. Obtener valores y la ruta del archivo
+        valores = self.tree.item(sel[0])['values']
+        nombre_fuente = str(valores[0]).lower()
+        path = valores[2]
+        nombre_archivo = os.path.basename(path).lower()
+
+        # ====================================================================
+        # ESCUDO DE PROTECCIÓN: FUENTES CRÍTICAS DEL SISTEMA OPERATIVO
+        # ====================================================================
+        fuentes_protegidas = ("segoe", "arial", "calibri", "tahoma", "verdana", "consola", "times", "marlett")
         
-        self.all_items = [item for item in self.all_items if item[2] != path]
-        messagebox.showinfo("Éxito", "Archivo movido a papelera y eliminado de la lista.")
+        if any(critica in nombre_fuente for critica in fuentes_protegidas) or any(critica in nombre_archivo for critica in fuentes_protegidas):
+            messagebox.showerror(
+                "Acción Bloqueada (Seguridad)", 
+                f"La fuente '{valores[0]}' está marcada como CRÍTICA para el funcionamiento de Windows.\n\n"
+                "Para evitar fallos en la interfaz visual del sistema operativo, el gestor ha bloqueado su eliminación."
+            )
+            return
+        # ====================================================================
+
+        # 2. Confirmación y proceso original de eliminación seguro
+        if messagebox.askyesno("Confirmar", f"¿Estás seguro de que deseas enviar '{valores[0]}' a la papelera?"):
+            self._mover_a_papelera(path)
+            self.tree.delete(sel[0])
+            
+            # Actualizar la lista maestra en memoria
+            self.all_items = [item for item in self.all_items if item[2] != path]
+            messagebox.showinfo("Éxito", "Archivo movido a papelera y eliminado de la lista.")
 
     def limpiar_duplicados(self):
         children = self.tree_dup.get_children()
@@ -538,18 +602,36 @@ class FontManagerApp:
                 self.preview_lbl.image = img_preview 
             except Exception as e:
                 self.preview_lbl.config(image='', text=f"No se pudo cargar la vista previa:\n{e}")
-                
+          
+    #------------------------Modo de Vista Previa con Texto Personalizado--------------------------------------------
+     
     def generar_preview(self, font_path):
+        # Crear un lienzo en blanco para la muestra gráfica
         img = Image.new('RGB', (750, 150), color=(255, 255, 255))
         draw = ImageDraw.Draw(img)
-        try:
-            font = ImageFont.truetype(font_path, 34)
+        
+        # Obtener el texto del Entry; si está vacío, usar el de respaldo por defecto
+        text = self.custom_text_var.get().strip()
+        if not text:
             text = "ABC abc 123 - Tipografía"
+            
+        try:
+            # Controlar el tamaño de la fuente basado en la longitud del texto para evitar desbordamientos
+            font_size = 34
+            if len(text) > 25:
+                font_size = max(16, 34 - (len(text) - 25) // 2)
+                
+            font = ImageFont.truetype(font_path, font_size)
+            
+            # Dibujar el texto centrado verticalmente en el lienzo
             draw.text((20, 50), text, fill=(0, 0, 0), font=font)
         except Exception:
             font_default = ImageFont.load_default()
             draw.text((20, 50), "Vista previa no disponible para este formato", fill=(255, 0, 0), font=font_default)
+            
         return ImageTk.PhotoImage(img)
+    #------------------------Modo de Vista Previa con Texto Personalizado--------------------------------------------
+       
         
     def stop_scan(self): 
         self.is_running = False

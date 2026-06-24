@@ -1,6 +1,6 @@
-# Implementamos en la parte inferior un boton  Desactivación Rápida de Fuentes Temporales (Limpiar Memoria). (Limpia todas la fuentes temporales que hemos cargado )
-# al costado de cancelar scan
-# es diferente al hacer click derecho en cada uno de las fuentes 
+#al seleccionar carpeta me aparece la carpeta windows pero no aparece la carpeta C:\Windows\Fonts para seleccionarla
+# Se agrega un boton para incluir la carpeta C:\Windows\Fonts  en la ruta  o tambien lo podemos ngresar manualemente
+# porque ne la forma tradicional no permite ( al selecionar carpeta no aparece FONTS)
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -67,7 +67,16 @@ class FontManagerApp:
         top_frame.pack(fill=tk.X)
         self.path_entry = tk.Entry(top_frame)
         self.path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
-        tk.Button(top_frame, text="Carpeta Fuentes", command=self.browse).pack(side=tk.LEFT)
+        
+        # Botones de selección de carpetas
+        tk.Button(top_frame, text="Carpeta Fuentes", command=self.browse).pack(side=tk.LEFT, padx=2)
+        # NUEVO: Botón de acceso directo para saltarse las restricciones de Windows
+        tk.Button(top_frame, text="🏛️ Fuentes del Sistema", command=self.seleccionar_fuentes_sistema, bg="#e2e8f0").pack(side=tk.LEFT, padx=2)
+        
+        # Checkbox para controlar la búsqueda recursiva en subcarpetas
+        self.buscar_subcarpetas_var = tk.BooleanVar(value=True)
+        self.chk_subcarpetas = tk.Checkbutton(top_frame, text="Incluir subcarpetas", variable=self.buscar_subcarpetas_var)
+        self.chk_subcarpetas.pack(side=tk.LEFT, padx=5)
 
         # --- Buscador y Filtros ---
         search_frame = tk.Frame(root, padx=10, pady=5)
@@ -105,9 +114,21 @@ class FontManagerApp:
         self.setup_context_menu(self.tree)
         self.tree.bind("<<TreeviewSelect>>", lambda e: self.show_details(self.tree))
 
+        # Panel derecho superior
         preview_frame = tk.Frame(h_paned)
         h_paned.add(preview_frame, width=800)
-        tk.Label(preview_frame, text="Vista Previa", font=("Arial", 10, "bold")).pack(anchor="w")
+        
+        preview_top_bar = tk.Frame(preview_frame, pady=2)
+        preview_top_bar.pack(fill=tk.X, anchor="w")
+        
+        tk.Label(preview_top_bar, text="Vista Previa", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 15))
+        tk.Label(preview_top_bar, text="Texto personalizado:", font=("Arial", 9)).pack(side=tk.LEFT)
+        
+        self.custom_text_var = tk.StringVar()
+        self.custom_text_entry = tk.Entry(preview_top_bar, textvariable=self.custom_text_var, font=("Arial", 10), width=45)
+        self.custom_text_entry.pack(side=tk.LEFT, padx=5)
+        self.custom_text_entry.bind("<KeyRelease>", lambda e: self.show_details(self.tree))
+
         self.preview_lbl = tk.Label(preview_frame, text="Selecciona una fuente", bg="white", relief="sunken")
         self.preview_lbl.pack(fill=tk.BOTH, expand=True, pady=5)
 
@@ -129,10 +150,7 @@ class FontManagerApp:
         tk.Button(btn_frame, text="Analizar", command=self.start_scan, bg="#d4edda").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Eliminar Archivo", command=self.delete_item, bg="#ffcccb").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Limpiar Duplicados", command=self.limpiar_duplicados, bg="#ffcccb").pack(side=tk.LEFT, padx=5)
-        
-        # NUEVO BOTÓN: Limpieza rápida de memoria tipográfica
         tk.Button(btn_frame, text="Desactivar Temporales", command=self.desactivar_todas_las_temporales, bg="#ffe8cc", fg="#d97706", font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=5)
-        
         
         self.btn_cancel = tk.Button(btn_frame, text="Cancelar Scan", command=self.stop_scan, bg="#f8d7da", state=tk.DISABLED)
         self.btn_cancel.pack(side=tk.LEFT, padx=5)
@@ -141,7 +159,13 @@ class FontManagerApp:
         self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
         self.lbl_percent = tk.Label(btn_frame, text="0%")
         self.lbl_percent.pack(side=tk.LEFT, padx=5)
-    
+
+    def seleccionar_fuentes_sistema(self):
+        """Asigna directamente la ruta protegida de fuentes del sistema Windows"""
+        ruta_sistema = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Fonts')
+        self.path_entry.delete(0, tk.END)
+        self.path_entry.insert(0, ruta_sistema)
+        
     def es_administrador(self):
         try:
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
@@ -150,17 +174,13 @@ class FontManagerApp:
 
     def obtener_estado_fuente(self, ruta_archivo):
         nombre_base = os.path.basename(ruta_archivo)
-        
-        # 1. Comprobar si está activada temporalmente en la sesión actual
         if ruta_archivo in self.fuentes_temporales:
             return "Temporal"
             
-        # 2. Comprobar si está instalada en el sistema (C:\Windows\Fonts)
         ruta_sistema = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Fonts', nombre_base)
         if os.path.exists(ruta_sistema):
             return "Instalada"
             
-        # 3. Comprobar mediante el Registro de Windows por si tiene otro nombre de archivo
         try:
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", 0, winreg.KEY_READ) as key:
                 i = 0
@@ -234,7 +254,6 @@ class FontManagerApp:
 
     def abrir_ventana_whitelist(self):
         win = self._preparar_modal("Gestión de Lista Blanca", 700, 400)
-        
         tk.Label(win, text="Archivos y Carpetas protegidos", font=("Arial", 12, "bold")).pack(pady=10)
         lb = tk.Listbox(win, font=("Arial", 10))
         lb.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -256,9 +275,18 @@ class FontManagerApp:
     def scan_logic(self):
         ruta = self.path_entry.get()
         seen = {}
-        files = [os.path.join(r, f) for r, _, fs in os.walk(ruta) for f in fs if f.lower().endswith(('.ttf', '.otf'))]
-        total = len(files)
         
+        try:
+            if self.buscar_subcarpetas_var.get():
+                files = [os.path.join(r, f) for r, _, fs in os.walk(ruta) for f in fs if f.lower().endswith(('.ttf', '.otf'))]
+            else:
+                files = [os.path.join(ruta, f) for f in os.listdir(ruta) if os.path.isfile(os.path.join(ruta, f)) and f.lower().endswith(('.ttf', '.otf'))]
+        except Exception as e:
+            self.root.after(0, lambda: messagebox.showerror("Error", f"No se pudo leer la carpeta:\n{e}"))
+            self.root.after(0, lambda: self.btn_cancel.config(state=tk.DISABLED))
+            return
+            
+        total = len(files)
         if total == 0:
             self.root.after(0, lambda: [self.btn_cancel.config(state=tk.DISABLED), messagebox.showinfo("Búsqueda", "No se encontraron fuentes.")])
             return
@@ -321,8 +349,6 @@ class FontManagerApp:
 
     def setup_context_menu(self, tree):
         menu = tk.Menu(self.root, tearoff=0)
-        
-        # Acciones avanzadas de Fuentes de Sistema
         menu.add_command(label="⚡ Activar temporalmente (Memoria)", command=lambda: self.activar_temporal_ctx(tree))
         menu.add_command(label="💾 Instalar permanentemente", command=lambda: self.instalar_permanente_ctx(tree))
         menu.add_command(label="❌ Desinstalar del Sistema", command=lambda: self.desinstalar_sistema_ctx(tree))
@@ -330,7 +356,6 @@ class FontManagerApp:
         menu.add_command(label="Proteger Archivo", command=lambda: self.add_to_whitelist("archivo", tree))
         menu.add_command(label="Proteger Carpeta", command=lambda: self.add_to_whitelist("carpeta", tree))
         
-        # Evento corregido para identificar sobre cuál item se hace click derecho antes de desplegar
         def post_menu(e):
             item = tree.identify_row(e.y)
             if item:
@@ -338,24 +363,19 @@ class FontManagerApp:
                 menu.post(e.x_root, e.y_root)
                 
         tree.bind("<Button-3>", post_menu)
-
-    # --- ACCIONES DE GESTIÓN TIPOGRÁFICA (WINDOWS API) ---
     
     def activar_temporal_ctx(self, tree):
         sel = tree.selection()
         if not sel: return
         valores = tree.item(sel[0])['values']
-        # En la tabla principal la ruta está en el índice 2, en duplicados o papelera varía.
         path = valores[2] if len(valores) > 2 else valores[1]
         
         if not os.path.exists(path):
             messagebox.showerror("Error", "El archivo de origen ya no existe.")
             return
 
-        # AddFontResourceW carga la fuente en memoria para la sesión activa
         resultado = ctypes.windll.gdi32.AddFontResourceW(path)
         if resultado != 0:
-            # Notificar a las aplicaciones abiertas del cambio de tipografías
             ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
             self.fuentes_temporales.add(path)
             messagebox.showinfo("Éxito", "Fuente activada temporalmente en memoria.\nSe desactivará al reiniciar el equipo.")
@@ -374,16 +394,12 @@ class FontManagerApp:
         valores = tree.item(sel[0])['values']
         path = valores[2] if len(valores) > 2 else valores[1]
         nombre_archivo = os.path.basename(path)
-        
         ruta_destino = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Fonts', nombre_archivo)
         
         try:
-            # 1. Copiar archivo al directorio del sistema
             if not os.path.exists(ruta_destino):
                 shutil.copy(path, ruta_destino)
             
-            # 2. Registrar en el registro de Windows de manera definitiva
-            # Intentamos extraer el nombre real de la fuente
             font_title = os.path.splitext(nombre_archivo)[0] + " (TrueType)"
             try:
                 with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", 0, winreg.KEY_SET_VALUE) as key:
@@ -391,14 +407,12 @@ class FontManagerApp:
             except Exception as reg_err:
                 print(f"Error de Registro: {reg_err}")
             
-            # 3. Notificar al sistema global
             ctypes.windll.gdi32.AddFontResourceW(ruta_destino)
             ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
             
             messagebox.showinfo("Éxito", "Fuente instalada permanentemente en el sistema.")
             self.actualizar_item_maestro(path, "Instalada")
             self.filtrar_fuentes()
-            
         except Exception as e:
             messagebox.showerror("Error de Instalación", f"No se pudo completar la instalación fija:\n{e}")
 
@@ -413,7 +427,6 @@ class FontManagerApp:
         path = valores[2] if len(valores) > 2 else valores[1]
         nombre_archivo = os.path.basename(path)
         
-        # Evaluar remoción temporal primero si existe en memoria
         if path in self.fuentes_temporales:
             ctypes.windll.gdi32.RemoveFontResourceW(path)
             self.fuentes_temporales.discard(path)
@@ -421,11 +434,9 @@ class FontManagerApp:
         ruta_sistema = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Fonts', nombre_archivo)
         
         try:
-            # 1. Remover de memoria del sistema
             if os.path.exists(ruta_sistema):
                 ctypes.windll.gdi32.RemoveFontResourceW(ruta_sistema)
                 
-            # 2. Eliminar del Registro
             try:
                 with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", 0, winreg.KEY_ALL_ACCESS) as key:
                     i = 0
@@ -436,30 +447,23 @@ class FontManagerApp:
                             break
                         i += 1
             except OSError:
-                pass # Fin del bucle o registro no existente
+                pass
                 
-            # 3. Eliminar archivo físico de Fonts
             if os.path.exists(ruta_sistema):
                 os.remove(ruta_sistema)
                 
-            # 4. Avisar al entorno global Windows
             ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
-            
-            messagebox.showinfo("Éxito", "La fuente ha sido retirada del sistema por completo.")
+            messagebox.showinfo("Éxito", "La fuente ha sido registrada del sistema por completo.")
             self.actualizar_item_maestro(path, "No Instalada")
             self.filtrar_fuentes()
-            
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un inconveniente al desinstalar:\n{e}")
 
     def actualizar_item_maestro(self, path, nuevo_estado):
-        """Busca en la lista maestra y refresca el estado del item seleccionado"""
         for idx, item in enumerate(self.all_items):
             if item[2] == path:
                 self.all_items[idx] = (item[0], nuevo_estado, path)
                 break
-
-    # -----------------------------------------------------
 
     def add_to_whitelist(self, tipo, tree):
         sel = tree.selection()
@@ -506,12 +510,25 @@ class FontManagerApp:
         sel = self.tree.selection()
         if not sel: return
 
-        path = self.tree.item(sel[0])['values'][2]
-        self._mover_a_papelera(path)
-        self.tree.delete(sel[0])
-        
-        self.all_items = [item for item in self.all_items if item[2] != path]
-        messagebox.showinfo("Éxito", "Archivo movido a papelera y eliminado de la lista.")
+        valores = self.tree.item(sel[0])['values']
+        nombre_fuente = str(valores[0]).lower()
+        path = valores[2]
+        nombre_archivo = os.path.basename(path).lower()
+
+        fuentes_protegidas = ("segoe", "arial", "calibri", "tahoma", "verdana", "consola", "times", "marlett")
+        if any(critica in nombre_fuente for critica in fuentes_protegidas) or any(critica in nombre_archivo for critica in fuentes_protegidas):
+            messagebox.showerror(
+                "Acción Bloqueada (Seguridad)", 
+                f"La fuente '{valores[0]}' está marcada como CRÍTICA para el funcionamiento de Windows.\n\n"
+                "Para evitar fallos en la interfaz visual del sistema operativo, el gestor ha bloqueado su eliminación."
+            )
+            return
+
+        if messagebox.askyesno("Confirmar", f"¿Estás seguro de que deseas enviar '{valores[0]}' a la papelera?"):
+            self._mover_a_papelera(path)
+            self.tree.delete(sel[0])
+            self.all_items = [item for item in self.all_items if item[2] != path]
+            messagebox.showinfo("Éxito", "Archivo movido a papelera y eliminado de la lista.")
 
     def limpiar_duplicados(self):
         children = self.tree_dup.get_children()
@@ -538,19 +555,28 @@ class FontManagerApp:
                 self.preview_lbl.image = img_preview 
             except Exception as e:
                 self.preview_lbl.config(image='', text=f"No se pudo cargar la vista previa:\n{e}")
-                
+          
     def generar_preview(self, font_path):
         img = Image.new('RGB', (750, 150), color=(255, 255, 255))
         draw = ImageDraw.Draw(img)
-        try:
-            font = ImageFont.truetype(font_path, 34)
+        
+        text = self.custom_text_var.get().strip()
+        if not text:
             text = "ABC abc 123 - Tipografía"
+            
+        try:
+            font_size = 34
+            if len(text) > 25:
+                font_size = max(16, 34 - (len(text) - 25) // 2)
+                
+            font = ImageFont.truetype(font_path, font_size)
             draw.text((20, 50), text, fill=(0, 0, 0), font=font)
         except Exception:
             font_default = ImageFont.load_default()
             draw.text((20, 50), "Vista previa no disponible para este formato", fill=(255, 0, 0), font=font_default)
+            
         return ImageTk.PhotoImage(img)
-        
+       
     def stop_scan(self): 
         self.is_running = False
         
@@ -562,7 +588,6 @@ class FontManagerApp:
     
     def abrir_ventana_papelera(self):
         win = self._preparar_modal("Gestor de Papelera", 750, 450)
-    
         cols = ("Nombre", "Ruta Original")
         tree = ttk.Treeview(win, columns=cols, show='headings')
         for col in cols: 
@@ -631,11 +656,9 @@ class FontManagerApp:
     def guardar_y_cerrar(self, win, entry_rep, entry_pap):
         self.ruta_reporte = entry_rep.get()
         self.papelera = entry_pap.get()
-        
         if not os.path.exists(self.papelera):
             os.makedirs(self.papelera, exist_ok=True)
         self.guardar_configuracion_json()
-        
         messagebox.showinfo("Guardado", "Configuración actualizada.", parent=win)
         win.destroy()
 
@@ -646,10 +669,7 @@ class FontManagerApp:
             entry.insert(0, ruta)   
 
     def guardar_configuracion_json(self):
-        config = {
-            "ruta_reporte": self.ruta_reporte,
-            "papelera": self.papelera
-        }
+        config = {"ruta_reporte": self.ruta_reporte, "papelera": self.papelera}
         with open("config.json", "w", encoding='utf-8') as f:
             json.dump(config, f, indent=4)
 
@@ -671,16 +691,11 @@ class FontManagerApp:
         query = self.search_var.get().lower()
         filtro_estado = self.filtro_estado_var.get()
         
-        # 1. Limpiamos totalmente el Treeview visual
         for item in self.tree.get_children():
             self.tree.delete(item)
             
-        # 2. Reinsertamos solo lo que cumple con el filtro de texto y de estado
         for nombre, estado, ruta in self.all_items:
-            # Validar filtro por cuadro de búsqueda (nombre de la fuente)
             cumple_query = not query or query in nombre.lower()
-            
-            # Validar filtro por el Combobox de Estados (corregido la coincidencia exacta)
             cumple_estado = (
                 (filtro_estado == "Todas") or 
                 (filtro_estado == "Instaladas" and estado == "Instalada") or
@@ -690,45 +705,32 @@ class FontManagerApp:
             
             if cumple_query and cumple_estado:
                 tag = "normal"
-                if estado == "Instalada": 
-                    tag = "instalada"
-                elif estado == "Temporal": 
-                    tag = "temporal"
-                
+                if estado == "Instalada": tag = "instalada"
+                elif estado == "Temporal": tag = "temporal"
                 self.tree.insert("", "end", values=(nombre, estado, ruta), tags=(tag,))
                 
     def desactivar_todas_las_temporales(self):
-        """Remueve de la memoria de Windows todas las fuentes cargadas temporalmente en esta sesión"""
         if not self.fuentes_temporales:
             messagebox.showinfo("Limpiar Memoria", "No hay fuentes temporales cargadas en la memoria para desactivar.")
             return
 
         cant_fuentes = len(self.fuentes_temporales)
-        
-        # Copiamos las rutas para poder iterar y limpiar de forma segura
         rutas_a_remover = list(self.fuentes_temporales)
-        
         removidas_con_exito = 0
+        
         for path in rutas_a_remover:
-            # Remover de la memoria RAM de Windows
             resultado = ctypes.windll.gdi32.RemoveFontResourceW(path)
             if resultado != 0:
                 self.fuentes_temporales.discard(path)
-                # Cambiar el estado de la fuente en la lista maestra a "No Instalada"
                 self.actualizar_item_maestro(path, "No Instalada")
                 removidas_con_exito += 1
 
-        # Notificar a todas las ventanas del sistema de forma colectiva
         ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
-        
-        # Refrescar y filtrar la tabla visual de inmediato
         self.filtrar_fuentes()
-        
         messagebox.showinfo("Éxito", f"Se han liberado y desactivado {removidas_con_exito} de {cant_fuentes} fuentes de la memoria.")
 
-        
-            
 if __name__ == "__main__":
     root = tk.Tk()
     app = FontManagerApp(root)
     root.mainloop()
+    
