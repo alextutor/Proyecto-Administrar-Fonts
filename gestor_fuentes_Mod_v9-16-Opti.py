@@ -1,18 +1,12 @@
-# 
-# Instalación Masiva por Lotes (Instalación Inteligente)
-# 
+# ---------------Coleccion -----------------------
+# 1) deseo centrar el formulario secundario añadir coleccion utilizando la funcion def centrar_ventana
+# 2) Poner otro boton analizar al costado del check incluir subcarpeta
+# 3) y en el formulario secundario configuracion General al presionar el boton cambiar la ventana seleccionar carpeta se va detras del formulariuo secundario 
+# 2. 🗂️ Creación de Colecciones o "Etiquetas" Virtuales (Categorías)
+# ¿Qué hace?: Permitir agrupar fuentes por estilos (por ejemplo: Serif, Sans-Serif, Cursivas, Corporativas, Títulos) sin necesidad de mover físicamente los archivos de carpeta.
+# ¿Cómo se implementaría?: Una base de datos ligera o un archivo JSON secundario (colecciones.json) donde se asocien las rutas de las fuentes a etiquetas creadas por ti, añadiendo un filtro en la UI para ver solo una colección.
 
-# Esta es una mejora estructural importantísima. Realizar acciones una por una puede volverse tedioso cuando estás auditando o instalando familias tipográficas completas (por ejemplo, 18 variantes de Montserrat).
 
-# Para implementar la Instalación Masiva por Lotes, he realizado los siguientes cambios clave en el corazón de la aplicación:
-
-# Detección de Selección Múltiple: Modifiqué el evento del clic derecho (<Button-3>) para que respete tu selección múltiple (cuando usas Shift o Ctrl). Si haces clic derecho sobre un grupo ya seleccionado, el menú aplicará la acción a todos ellos.
-
-# Motor de Procesamiento por Lotes (_procesar_lote): Creé una ventana modal de progreso dedicada. Si seleccionas 50 fuentes para activar, verás una barra cargar sin que el programa o tu computadora se congelen.
-
-# Transmisión Optimizada a Windows: El gran problema de instalar muchas fuentes a la vez es que decirle a Windows que actualice su caché (usando SendMessageW) en cada archivo congela el sistema operativo. Ahora, el programa procesa todas las fuentes en silencio y le avisa a Windows solo una vez al finalizar, haciendo que el proceso masivo sea de golpe e instantáneo.
-
-# Soporte Completo: La selección múltiple también aplica ahora a "Proteger Archivo" y "Proteger Carpeta", permitiéndote meter en lista blanca docenas de fuentes de un solo tirón.
 
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, colorchooser
@@ -79,6 +73,11 @@ class FontManagerApp:
         config_menu.add_command(label="Abrir Papelera", command=self.abrir_ventana_papelera)
         config_menu.add_separator()
         config_menu.add_command(label="📊 Exportar Reporte de Fuentes", command=self.exportar_reporte)
+        
+        #------------- Coleccion ------------------------
+        # Dentro de tu función setup_context_menu:
+        config_menu.add_command(label="📁 Añadir a Colección", command=self.añadir_a_coleccion)
+        #------------- Coleccion ------------------------
 
         # --- UI Layout ---
         top_frame = tk.Frame(root, padx=10, pady=5)
@@ -95,6 +94,10 @@ class FontManagerApp:
         self.chk_subcarpetas = tk.Checkbutton(top_frame, text="Incluir subcarpetas", variable=self.buscar_subcarpetas_var)
         self.chk_subcarpetas.pack(side=tk.LEFT, padx=5)
 
+        # Nuevo botón Analizar al costado
+        tk.Button(top_frame, text="🔍 Analizar", command=self.start_scan, bg="#d4edda").pack(side=tk.LEFT, padx=5)
+
+
         # --- Buscador y Filtros ---
         search_frame = tk.Frame(root, padx=10, pady=5)
         search_frame.pack(fill=tk.X)
@@ -109,6 +112,17 @@ class FontManagerApp:
         self.cb_filtro_estado = ttk.Combobox(search_frame, textvariable=self.filtro_estado_var, values=["Todas", "Instaladas", "Temporales", "No Instaladas"], state="readonly", width=15)
         self.cb_filtro_estado.pack(side=tk.LEFT, padx=5)
         self.cb_filtro_estado.bind("<<ComboboxSelected>>", lambda e: self.filtrar_fuentes())
+        
+        # ---------------Coleccion ----------------------- 
+        
+        tk.Label(search_frame, text="Colección:").pack(side=tk.LEFT, padx=(10, 5))
+        self.coleccion_var = tk.StringVar(value="Todas")
+        self.colecciones = self.cargar_colecciones()
+        self.cb_coleccion = ttk.Combobox(search_frame, textvariable=self.coleccion_var, values=["Todas"] + list(self.colecciones.keys()), state="readonly", width=15)
+        self.cb_coleccion.pack(side=tk.LEFT, padx=5)
+        self.cb_coleccion.bind("<<ComboboxSelected>>", lambda e: self.filtrar_fuentes())
+        # ---------------Coleccion -----------------------
+        
 
         paned = tk.PanedWindow(root, orient=tk.VERTICAL, sashrelief=tk.RAISED)
         paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -194,7 +208,7 @@ class FontManagerApp:
 
         btn_frame = tk.Frame(root, pady=10)
         btn_frame.pack(fill=tk.X, padx=10)
-        tk.Button(btn_frame, text="Analizar", command=self.start_scan, bg="#d4edda").pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="🔍 Analizar", command=self.start_scan, bg="#d4edda").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Eliminar Archivo", command=self.delete_item, bg="#ffcccb").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Limpiar Duplicados", command=self.limpiar_duplicados, bg="#ffcccb").pack(side=tk.LEFT, padx=5)
         tk.Button(btn_frame, text="Desactivar Temporales", command=self.desactivar_todas_las_temporales, bg="#ffe8cc", fg="#d97706", font=("Arial", 9, "bold")).pack(side=tk.LEFT, padx=5)
@@ -543,6 +557,12 @@ class FontManagerApp:
         menu.add_command(label="Proteger Archivo(s)", command=lambda: self.add_to_whitelist("archivo", tree))
         menu.add_command(label="Proteger Carpeta(s)", command=lambda: self.add_to_whitelist("carpeta", tree))
         
+        #------------- Coleccion ------------------------
+        menu.add_command(label="📁 Añadir a Colección", command=self.añadir_a_coleccion)
+        #------------- Coleccion ------------------------
+
+        
+        
         def post_menu(e):
             item = tree.identify_row(e.y)
             if item:
@@ -865,26 +885,47 @@ class FontManagerApp:
         tk.Button(win, text="Restaurar Selección", command=restaurar_seleccion, bg="#d4edda").pack(pady=10)
         
     def abrir_ventana_configuracion(self):
+        # win = self._preparar_modal("Configuración General", 600, 250)
+        # win.columnconfigure(1, weight=1)
+
+        # tk.Label(win, text="Ruta de Reportes:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        # entry_reporte = tk.Entry(win)
+        # entry_reporte.insert(0, self.ruta_reporte)
+        # entry_reporte.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
+        # tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta(entry_reporte, True)).grid(row=0, column=2, padx=10, pady=10)
+
+        # tk.Label(win, text="Ruta de Papelera:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        # entry_papelera = tk.Entry(win)
+        # entry_papelera.insert(0, self.papelera)
+        # entry_papelera.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
+        # tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta(entry_papelera, True)).grid(row=1, column=2, padx=10, pady=10)
+        
         win = self._preparar_modal("Configuración General", 600, 250)
         win.columnconfigure(1, weight=1)
 
+        # ... etiquetas y entradas (igual que antes) ...
         tk.Label(win, text="Ruta de Reportes:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
         entry_reporte = tk.Entry(win)
         entry_reporte.insert(0, self.ruta_reporte)
         entry_reporte.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
-        tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta(entry_reporte, True)).grid(row=0, column=2, padx=10, pady=10)
+        
+        # CAMBIO AQUÍ: Llamamos al método nuevo
+        tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta_seguro(win, entry_reporte)).grid(row=0, column=2, padx=10, pady=10)
 
         tk.Label(win, text="Ruta de Papelera:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
         entry_papelera = tk.Entry(win)
         entry_papelera.insert(0, self.papelera)
         entry_papelera.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
-        tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta(entry_papelera, True)).grid(row=1, column=2, padx=10, pady=10)
+        
+        # CAMBIO AQUÍ: Llamamos al método nuevo
+        tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta_seguro(win, entry_papelera)).grid(row=1, column=2, padx=10, pady=10)
 
         btn_frame = tk.Frame(win)
         btn_frame.grid(row=2, column=0, columnspan=3, pady=20)
         
         tk.Button(btn_frame, text="Guardar Cambios", command=lambda: self.guardar_y_cerrar(win, entry_reporte, entry_papelera), bg="#d4edda").pack(side=tk.LEFT, padx=10)
         tk.Button(btn_frame, text="Cancelar", command=win.destroy).pack(side=tk.LEFT, padx=10)
+        
 
     def guardar_y_cerrar(self, win, entry_rep, entry_pap):
         self.ruta_reporte = entry_rep.get()
@@ -919,24 +960,29 @@ class FontManagerApp:
         else:
             self.ruta_reporte = os.getcwd()
             self.papelera = os.path.join(os.getcwd(), "Papelera_Fuentes")
-            
-    def filtrar_fuentes(self, *args):
+      
+     # --------------filtrar_fuentes se modifico para Coleccion   
+    def filtrar_fuentes(self):
         query = self.search_var.get().lower()
         filtro_estado = self.filtro_estado_var.get()
+        coleccion_activa = self.coleccion_var.get()
         
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # Limpiar tabla
+        for i in self.tree.get_children():
+            self.tree.delete(i)
             
         for nombre, estado, ruta in self.all_items:
-            cumple_query = not query or query in nombre.lower()
-            cumple_estado = (
-                (filtro_estado == "Todas") or 
+            # Lógica de filtros
+            cumple_query = query in nombre.lower()
+            cumple_estado = (filtro_estado == "Todas") or (
                 (filtro_estado == "Instaladas" and estado == "Instalada") or
                 (filtro_estado == "Temporales" and estado == "Temporal") or
                 (filtro_estado == "No Instaladas" and estado == "No Instalada")
             )
+            # Lógica de colección
+            cumple_coleccion = (coleccion_activa == "Todas") or (ruta in self.colecciones.get(coleccion_activa, []))
             
-            if cumple_query and cumple_estado:
+            if cumple_query and cumple_estado and cumple_coleccion:
                 tag = "normal"
                 if estado == "Instalada": tag = "instalada"
                 elif estado == "Temporal": tag = "temporal"
@@ -961,7 +1007,123 @@ class FontManagerApp:
         ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
         self.filtrar_fuentes()
         messagebox.showinfo("Éxito", f"Se han liberado y desactivado {removidas_con_exito} de {cant_fuentes} fuentes de la memoria.")
+    
+    def cargar_colecciones(self):
+        if os.path.exists("colecciones.json"):
+            with open("colecciones.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
 
+    def guardar_colecciones(self):
+        with open("colecciones.json", "w", encoding="utf-8") as f:
+            json.dump(self.colecciones, f, indent=4)
+
+    def añadir_a_coleccion(self):
+        seleccion = self.tree.selection()
+        if not seleccion: return
+        
+        # Pedir nombre de colección
+        from tkinter import simpledialog
+        nueva_coleccion = simpledialog.askstring("Colección", "Nombre de la colección (o nueva):")
+        if not nueva_coleccion: return
+        
+        if nueva_coleccion not in self.colecciones:
+            self.colecciones[nueva_coleccion] = []
+            # Actualizar combobox
+            self.actualizar_combobox_colecciones()
+            
+        for item in seleccion:
+            ruta = self.tree.item(item, "values")[2]
+            if ruta not in self.colecciones[nueva_coleccion]:
+                self.colecciones[nueva_coleccion].append(ruta)
+        
+        self.guardar_colecciones()
+        messagebox.showinfo("Éxito", f"Fuentes añadidas a '{nueva_coleccion}'")
+
+    def actualizar_combobox_colecciones(self):
+        lista = ["Todas"] + list(self.colecciones.keys())
+        self.cb_coleccion['values'] = lista
+        
+    # -------------------Coleccion---------------------------------------
+    
+    
+    
+    def cargar_colecciones(self):
+        if os.path.exists("colecciones.json"):
+            with open("colecciones.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {}
+
+    def guardar_colecciones(self):
+        with open("colecciones.json", "w", encoding="utf-8") as f:
+            json.dump(self.colecciones, f, indent=4)
+
+    def añadir_a_coleccion(self):
+        seleccion = self.tree.selection()
+        if not seleccion:
+            messagebox.showwarning("Selección", "Por favor, selecciona al menos una fuente.")
+            return
+        
+        # Crear ventana emergente
+        win = tk.Toplevel(self.root)
+        self.centrar_ventana(win, 300, 200)
+        win.title("Añadir a Colección")
+        win.geometry("300x150")
+        win.grab_set()
+        
+        tk.Label(win, text="Selecciona o escribe una colección:").pack(pady=10)
+        
+        # Combobox con colecciones existentes
+        colecciones_disponibles = list(self.colecciones.keys())
+        cb = ttk.Combobox(win, values=colecciones_disponibles)
+        cb.pack(pady=5)
+        
+        def confirmar():
+            nombre = cb.get()
+            if not nombre:
+                messagebox.showerror("Error", "Debes ingresar un nombre de colección.")
+                return
+            
+            # Si no existe, se crea automáticamente
+            if nombre not in self.colecciones:
+                self.colecciones[nombre] = []
+                self.actualizar_combobox_colecciones()
+            
+            # Añadir rutas
+            for item in seleccion:
+                ruta = self.tree.item(item, "values")[2]
+                if ruta not in self.colecciones[nombre]:
+                    self.colecciones[nombre].append(ruta)
+            
+            self.guardar_colecciones()
+            messagebox.showinfo("Éxito", f"Fuentes añadidas a '{nombre}'")
+            win.destroy()
+            
+        btn = tk.Button(win, text="Aceptar", command=confirmar)
+        btn.pack(pady=10)
+
+    def actualizar_combobox_colecciones(self):
+        lista = ["Todas"] + list(self.colecciones.keys())
+        self.cb_coleccion['values'] = lista
+    # ---------------------------------------------------------- 
+
+
+    # ---------------------------------------------------------- 
+    def seleccionar_ruta_seguro(self, win, entry_widget):
+        # 1. Liberar el foco modal de la ventana actual
+        win.grab_release()
+        
+        # 2. Abrir el diálogo de selección de carpeta
+        nueva_ruta = filedialog.askdirectory(title="Seleccionar Carpeta", parent=win)
+        
+        # 3. Volver a tomar el foco para mantener la ventana como modal
+        win.grab_set()
+        
+        if nueva_ruta:
+            entry_widget.delete(0, tk.END)
+            entry_widget.insert(0, nueva_ruta)
+
+        
 if __name__ == "__main__":
     root = tk.Tk()
     app = FontManagerApp(root)

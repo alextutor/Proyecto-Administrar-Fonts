@@ -1,0 +1,18 @@
+Centrar Ventana
+------------------------
+lama a self.centrar_ventana(win, 300, 200) inmediatamente después de crear la ventana win.
+Ejemplo uso:
+
+def añadir_a_coleccion(self):
+        seleccion = self.tree.selection()
+        if not seleccion:
+            messagebox.showwarning("Selección", "Por favor, selecciona al menos una fuente.")
+            return
+        
+        # Crear ventana emergente
+        win = tk.Toplevel(self.root)
+        self.centrar_ventana(win, 300, 200)
+        win.title("Añadir a Colección")
+        win.geometry("300x150")
+        win.grab_set()
+        
