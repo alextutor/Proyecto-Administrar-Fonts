@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 
 
 # 📋 Análisis y Planificación de la Estructura
 # Para implementar estas tres grandes mejoras sin saturar la ventana principal ni degradar el rendimiento al renderizar fuentes pesadas, propongo la siguiente estrategia de diseño y lógica de datos:
@@ -33,11 +34,9 @@ except ImportError:
 WM_FONTCHANGE = 0x001D
 HWND_BROADCAST = 0xFFFF
 
-#--------------Nombre Original Fuente Corregido---------------------
 def obtener_nombre_real_fuente(ruta_archivo):
     """
     Lee los metadatos internos de un archivo .ttf o .otf para extraer el nombre completo real.
-    Prioriza fontTools, usa Pillow (PIL) como segundo respaldo, y el nombre de archivo como último recurso.  
     """
     if FONTTOOLS_AVAILABLE:
         try:
@@ -46,7 +45,7 @@ def obtener_nombre_real_fuente(ruta_archivo):
             nombre_completo = None
             
             for record in name_table.names:
-                if record.nameID == 4: # Full Font Name (ej: "Arial Bold Italic")
+                if record.nameID == 4: 
                     if record.isUnicode():
                         nombre_completo = record.string.decode('utf-16-be').strip()
                     else:
@@ -55,7 +54,7 @@ def obtener_nombre_real_fuente(ruta_archivo):
                     
             if not nombre_completo:
                 for record in name_table.names:
-                    if record.nameID == 1: # Font Family Name
+                    if record.nameID == 1: 
                         nombre_completo = record.string.decode('utf-16-be' if record.isUnicode() else 'latin-1').strip()
                         break
 
@@ -65,7 +64,6 @@ def obtener_nombre_real_fuente(ruta_archivo):
         except Exception:
             pass
 
-    # SEGUNDO RESPALDO: Usar Pillow si fontTools no está o  falla                                                            
     try:
         pil_font = ImageFont.truetype(ruta_archivo, 12)
         familia, estilo = pil_font.getname()
@@ -76,7 +74,7 @@ def obtener_nombre_real_fuente(ruta_archivo):
         pass
 
     return os.path.splitext(os.path.basename(ruta_archivo))[0]
-#-------------------------------------------------------------------
+
 
 class FontManagerApp:
     def __init__(self, root):
@@ -126,7 +124,6 @@ class FontManagerApp:
         config_menu.add_command(label="Exportar Reporte de Fuentes", command=self.exportar_reporte)
         config_menu.add_command(label="Añadir a Colección", command=self.anadir_a_coleccion)
         
-
         herramientas_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Herramientas", menu=herramientas_menu)
         herramientas_menu.add_command(label="Comparador de Fuentes (Doble Panel)", command=self.abrir_ventana_comparador)
@@ -241,8 +238,7 @@ class FontManagerApp:
 
         self.btn_default = tk.Button(adv_group, text="↺", font=("Segoe UI Emoji", 10), command=self.default_colors, bg="#e2e8f0", width=4)
         self.btn_default.pack(side=tk.LEFT, padx=2)
-      
-                                                                                                                 
+
         # --- Pestañas de Modos de Vista Previa (Normal, Cascada, Glifos) ---
         self.preview_tabs = ttk.Notebook(preview_frame)
         self.preview_tabs.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -290,7 +286,7 @@ class FontManagerApp:
         self.txt_info.config(state=tk.DISABLED)
 
         bot_panel = tk.Frame(paned)
-        paned.add(bot_panel, height=200)
+        paned.add(bot_panel, height=180)
         self.tree_dup = self.crear_tabla(bot_panel, "Duplicados detectados", ["Nombre", "Ruta", "Duplicado de"])
         self.setup_context_menu(self.tree_dup)
 
@@ -359,112 +355,7 @@ class FontManagerApp:
             self.show_details(self.tree)
         else:
             self.info_panel_frame.pack_forget()
-    
-     #---------------------Inicio Reporte ----------------------------------
 
-    def exportar_reporte(self):
-        if not self.all_items:
-            messagebox.showwarning("Atencion", "No hay datos para exportar. Por favor, realice un analisis analizando una carpeta primero.")
-            return
-            
-        file_path = filedialog.asksaveasfilename(
-            title="Guardar Reporte de Fuentes Analizadas",
-            defaultextension=".csv",
-            filetypes=[
-                ("Archivo CSV (*.csv)", "*.csv"),
-                ("Reporte HTML (*.html)", "*.html"),
-                ("Documento de Texto (*.txt)", "*.txt")
-            ]
-        )
-        
-        if not file_path:
-            return
-            
-        ext = os.path.splitext(file_path)[1].lower()
-        ahora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        try:
-            if ext == ".csv":
-                import csv
-                with open(file_path, mode='w', newline='', encoding='utf-8-sig') as f:
-                    writer = csv.writer(f, delimiter=',')
-                    writer.writerow(["Nombre de la Fuente", "Estado Actual", "Ruta Absoluta del Archivo"])
-                    for nombre, estado, ruta in self.all_items:
-                        writer.writerow([nombre, estado, ruta])
-                        
-            elif ext == ".html":
-                with open(file_path, mode='w', encoding='utf-8') as f:
-                    f.write(f"""<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte Avanzado de Fuentes</title>
-    <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 30px; background-color: #f8fafc; color: #334155; }}
-        h1 {{ color: #0f172a; margin-bottom: 5px; font-size: 24px; }}
-        .meta-info {{ font-size: 14px; color: #64748b; margin-bottom: 25px; }}
-        table {{ width: 100%; border-collapse: collapse; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }}
-        th, td {{ padding: 12px 16px; text-align: left; font-size: 14px; }}
-        th {{ background-color: #1e293b; color: #ffffff; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }}
-        tr {{ border-bottom: 1px solid #e2e8f0; }}
-        tr:last-child {{ border-bottom: none; }}
-        tr:hover {{ background-color: #f1f5f9; }}
-        .badge {{ padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; display: inline-block; }}
-        .instalada {{ background-color: #d4edda; color: #155724; }}
-        .temporal {{ background-color: #ffe8cc; color: #d97706; }}
-        .no-instalada {{ background-color: #e2e8f0; color: #475569; }}
-    </style>
-</head>
-<body>
-    <h1>Inventario y Reporte de Fuentes</h1>
-    <div class="meta-info">
-        <strong>Fecha de generacion:</strong> {ahora_str}<br>
-        <strong>Total de elementos listados:</strong> {len(self.all_items)} fuentes unicas
-    </div>
-    <table>
-        <thead>
-            <tr>
-                <th>Nombre del Archivo</th>
-                <th>Estado del Sistema</th>
-                <th>Ubicacion en Disco</th>
-            </tr>
-        </thead>
-        <tbody>
-""")
-                    for nombre, estado, ruta in self.all_items:
-                        badge_class = "no-instalada"
-                        if estado == "Instalada": badge_class = "instalada"
-                        elif estado == "Temporal": badge_class = "temporal"
-                        
-                        f.write(f"""            <tr>
-                <td style="font-weight: 500;">{nombre}</td>
-                <td><span class="badge {badge_class}">{estado}</span></td>
-                <td style="color: #64748b; font-family: monospace; font-size: 13px;">{ruta}</td>
-            </tr>\n""")
-                    f.write("""        </tbody>
-    </table>
-</body>
-</html>
-""")
-            else: 
-                with open(file_path, mode='w', encoding='utf-8') as f:
-                    f.write(f"================================================================================\n")
-                    f.write(f"                   REPORTE DE INVENTARIO DE FUENTES TIPOGRAFICAS                \n")
-                    f.write(f"================================================================================\n")
-                    f.write(f"Fecha de Generacion: {ahora_str}\n")
-                    f.write(f"Total Fuentes Unicas: {len(self.all_items)}\n")
-                    f.write(f"--------------------------------------------------------------------------------\n\n")
-                    f.write(f"{'NOMBRE DEL ARCHIVO':<45} | {'ESTADO':<15} | RUTA EN DISCO\n")
-                    f.write(f"{'-'*45}-|-{'-'*15}-|-{'-'*50}\n")
-                    for nombre, estado, ruta in self.all_items:
-                        f.write(f"{nombre:<45} | {estado:<15} | {ruta}\n")
-                        
-            messagebox.showinfo("Exito", f"Reporte generado con exito!\n\nGuardado en:\n{file_path}")
-        except Exception as e:
-            messagebox.showerror("Error de Escritura", f"No se pudo guardar el archivo del reporte:\n{e}")
-    #---------------------Fin Reporte ----------------------------------
-           
     def seleccionar_fuentes_sistema(self):
         ruta_sistema = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Fonts', '')
         self.path_entry.delete(0, tk.END)
@@ -567,27 +458,6 @@ class FontManagerApp:
         self.btn_cancel.config(state=tk.NORMAL)
         threading.Thread(target=self.scan_logic, daemon=True).start()
 
-    def abrir_ventana_whitelist(self):
-        win = self._preparar_modal("Gestion de Lista Blanca", 700, 400)
-        tk.Label(win, text="Archivos y Carpetas protegidos", font=("Arial", 12, "bold")).pack(pady=10)
-        lb = tk.Listbox(win, font=("Arial", 10), selectmode=tk.EXTENDED)
-        lb.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        for item in self.whitelist["archivos"] + self.whitelist["carpetas"]:
-            lb.insert(tk.END, item)
-            
-        def borrar_sel():
-            sel = lb.curselection()
-            if sel:
-                for idx in reversed(sel):
-                    val = lb.get(idx)
-                    if val in self.whitelist["archivos"]: self.whitelist["archivos"].remove(val)
-                    if val in self.whitelist["carpetas"]: self.whitelist["carpetas"].remove(val)
-                    lb.delete(idx)
-                self.guardar_whitelist()
-        
-        tk.Button(win, text="Eliminar seleccion de la Lista", command=borrar_sel, bg="#f8d7da").pack(pady=10)
-                                  
     def scan_logic(self):
         ruta = self.path_entry.get()
         seen = {}
@@ -809,7 +679,7 @@ class FontManagerApp:
         sel = tree.selection()
         if not sel: return
         
-        anadidos = 0
+        anados = 0
         for item in sel:
             valores = tree.item(item)['values']
             path = valores[2] if len(valores) > 2 else valores[1]
@@ -817,16 +687,16 @@ class FontManagerApp:
                 nombre_arch = os.path.basename(path)
                 if nombre_arch not in self.whitelist["archivos"]:
                     self.whitelist["archivos"].append(nombre_arch)
-                    anadidos += 1
+                    anados += 1
             else: 
                 dir_path = os.path.dirname(path)
                 if dir_path not in self.whitelist["carpetas"]:
                     self.whitelist["carpetas"].append(dir_path)
-                    anadidos += 1
+                    anados += 1
                     
-        if anadidos > 0:
+        if anados > 0:
             self.guardar_whitelist()
-            messagebox.showinfo("Lista Blanca Actualizada", f"Se han protegido {anadidos} elementos correctamente.")
+            messagebox.showinfo("Lista Blanca Actualizada", f"Se han protegido {anados} elementos correctamente.")
 
     def cargar_whitelist(self):
         if os.path.exists(self.whitelist_file):
@@ -1166,14 +1036,68 @@ class FontManagerApp:
         except Exception:
             pass
         return ImageTk.PhotoImage(img)
+
+    def abrir_ventana_whitelist(self):
+        win = self._preparar_modal("Gestión de Lista Blanca", 700, 400)
+        tk.Label(win, text="Archivos y Carpetas protegidos", font=("Arial", 12, "bold")).pack(pady=10)
+        lb = tk.Listbox(win, font=("Arial", 10), selectmode=tk.EXTENDED)
+        lb.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-   #--------------------- Inicio Ventana papelera -----------------------------
+        for item in self.whitelist["archivos"] + self.whitelist["carpetas"]:
+            lb.insert(tk.END, item)
+            
+        def borrar_sel():
+            sel = lb.curselection()
+            if sel:
+                for idx in reversed(sel):
+                    val = lb.get(idx)
+                    if val in self.whitelist["archivos"]: self.whitelist["archivos"].remove(val)
+                    if val in self.whitelist["carpetas"]: self.whitelist["carpetas"].remove(val)
+                    lb.delete(idx)
+                self.guardar_whitelist()
+        
+        tk.Button(win, text="Eliminar selección de la Lista", command=borrar_sel, bg="#f8d7da").pack(pady=10)
+
+    def exportar_reporte(self):
+        if not self.all_items:
+            messagebox.showwarning("Atención", "No hay datos para exportar. Por favor, realice un análisis analizando una carpeta primero.")
+            return
+            
+        file_path = filedialog.asksaveasfilename(
+            title="Guardar Reporte de Fuentes Analizadas",
+            defaultextension=".csv",
+            filetypes=[("Archivo CSV (*.csv)", "*.csv"), ("Reporte HTML (*.html)", "*.html"), ("Documento de Texto (*.txt)", "*.txt")]
+        )
+        if not file_path: return
+        ext = os.path.splitext(file_path)[1].lower()
+        ahora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            if ext == ".csv":
+                import csv
+                with open(file_path, mode='w', newline='', encoding='utf-8-sig') as f:
+                    writer = csv.writer(f, delimiter=',')
+                    writer.writerow(["Nombre de la Fuente", "Estado Actual", "Ruta Absoluta del Archivo"])
+                    for nombre, estado, ruta in self.all_items:
+                        writer.writerow([nombre, estado, ruta])
+            elif ext == ".html":
+                with open(file_path, mode='w', encoding='utf-8') as f:
+                    f.write(f"<html><body><h1>Reporte de Fuentes</h1><p>Generado: {ahora_str}</p><table border='1'>")
+                    for nombre, estado, ruta in self.all_items:
+                        f.write(f"<tr><td>{nombre}</td><td>{estado}</td><td>{ruta}</td></tr>")
+                    f.write("</table></body></html>")
+            else:
+                with open(file_path, mode='w', encoding='utf-8') as f:
+                    for nombre, estado, ruta in self.all_items:
+                        f.write(f"{nombre} | {estado} | {ruta}\n")
+            messagebox.showinfo("Éxito", f"Reporte guardado en:\n{file_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo guardar: {e}")
+
     def abrir_ventana_papelera(self):
         win = self._preparar_modal("Gestor de Papelera", 750, 450)
         cols = ("Nombre", "Ruta Original")
         tree = ttk.Treeview(win, columns=cols, show='headings')
-        for col in cols: 
-            tree.heading(col, text=col)
+        for col in cols: tree.heading(col, text=col)
         tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         if os.path.exists(self.papelera):
@@ -1183,335 +1107,136 @@ class FontManagerApp:
                         with open(os.path.join(self.papelera, f), 'r', encoding='utf-8') as j:
                             meta = json.load(j)
                             tree.insert("", "end", values=(meta.get("nombre", f[:-5]), meta.get("ruta_original", "N/A")))
-                    except Exception:
-                        pass
+                    except Exception: pass
 
         def restaurar_seleccion():
             sel = tree.selection()
             if not sel: return
-            
             item = tree.item(sel[0])['values']
-            nombre = item[0]
-            ruta_origen = item[1]
-            
+            nombre, ruta_origen = item[0], item[1]
             archivo_papelera = os.path.join(self.papelera, nombre)
-            archivo_json = archivo_papelera + ".json"
-            
             if os.path.exists(archivo_papelera):
-                dir_origen = os.path.dirname(ruta_origen)
-                if not os.path.exists(dir_origen):
-                    os.makedirs(dir_origen, exist_ok=True)
-                    
+                os.makedirs(os.path.dirname(ruta_origen), exist_ok=True)
                 shutil.move(archivo_papelera, ruta_origen)
-                if os.path.exists(archivo_json):
-                    os.remove(archivo_json)
-                
+                if os.path.exists(archivo_papelera + ".json"): os.remove(archivo_papelera + ".json")
                 tree.delete(sel[0])
-                messagebox.showinfo("Restaurado", "El archivo ha vuelto a su ubicacion original.", parent=win)
-            else:
-                messagebox.showerror("Error", "No se encontro el archivo fisico in la papelera.", parent=win)
-
-        tk.Button(win, text="Restaurar Seleccion", command=restaurar_seleccion, bg="#d4edda").pack(pady=10)
+                messagebox.showinfo("Restaurado", "Elemento devuelto a su origen.", parent=win)
+        tk.Button(win, text="Restaurar Selección", command=restaurar_seleccion, bg="#d4edda").pack(pady=10)
         
-    #--------------------- Fin Ventana papelera -----------------------------
-     
-    #--------------------- Inicio Ventana Configuracion -----------------------------
-
     def abrir_ventana_configuracion(self):
-        win = self._preparar_modal("Configuracion General", 600, 250)
-        win.columnconfigure(1, weight=1)
-
-        tk.Label(win, text="Ruta de Reportes:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        entry_reporte = tk.Entry(win)
-        entry_reporte.insert(0, self.ruta_reporte)
-        entry_reporte.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
-        
-        tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta_seguro(win, entry_reporte)).grid(row=0, column=2, padx=10, pady=10)
-
-        tk.Label(win, text="Ruta de Papelera:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        entry_papelera = tk.Entry(win)
+        win = self._preparar_modal("Configuración General", 600, 250)
+        tk.Label(win, text="Ruta de Papelera:").grid(row=0, column=0, padx=10, pady=10)
+        entry_papelera = tk.Entry(win, width=40)
         entry_papelera.insert(0, self.papelera)
-        entry_papelera.grid(row=1, column=1, padx=5, pady=10, sticky="ew")
+        entry_papelera.grid(row=0, column=1, padx=5, pady=10)
         
-        tk.Button(win, text="Cambiar...", command=lambda: self.seleccionar_ruta_seguro(win, entry_papelera)).grid(row=1, column=2, padx=10, pady=10)
-
-        btn_frame = tk.Frame(win)
-        btn_frame.grid(row=2, column=0, columnspan=3, pady=20)
-        
-        tk.Button(btn_frame, text="Guardar Cambios", command=lambda: self.guardar_y_cerrar(win, entry_reporte, entry_papelera), bg="#d4edda").pack(side=tk.LEFT, padx=10)
-        tk.Button(btn_frame, text="Cancelar", command=win.destroy).pack(side=tk.LEFT, padx=10)
-        
-    def guardar_y_cerrar(self, win, entry_rep, entry_pap):
-        self.ruta_reporte = entry_rep.get()
-        self.papelera = entry_pap.get()
-        if not os.path.exists(self.papelera):
-            os.makedirs(self.papelera, exist_ok=True)
-        self.guardar_configuracion_json()
-        messagebox.showinfo("Guardado", "Configuracion actualizada.", parent=win)
-        win.destroy()
-
-    def seleccionar_ruta(self, entry, es_carpeta=True):
-        ruta = filedialog.askdirectory() if es_carpeta else filedialog.asksaveasfilename()
-        if ruta:
-            entry.delete(0, tk.END)
-            entry.insert(0, ruta)   
+        def guardar():
+            self.papelera = entry_papelera.get()
+            self.guardar_configuracion_json()
+            win.destroy()
+        tk.Button(win, text="Guardar", command=guardar, bg="#d4edda").grid(row=1, column=0, columnspan=2, pady=10)
 
     def guardar_configuracion_json(self):
-        config = {"ruta_reporte": self.ruta_reporte, "papelera": self.papelera}
         with open("config.json", "w", encoding='utf-8') as f:
-            json.dump(config, f, indent=4)
+            json.dump({"ruta_reporte": self.ruta_reporte, "papelera": self.papelera}, f, indent=4)
 
     def cargar_configuracion_json(self):
-                                                                     
-                                         
+        self.ruta_reporte = os.getcwd()
+        self.papelera = os.path.join(os.getcwd(), "Papelera_Fuentes")
         if os.path.exists("config.json"):
             try:
                 with open("config.json", "r", encoding='utf-8') as f:
-                    config = json.load(f)
-                    self.ruta_reporte = config.get("ruta_reporte", os.getcwd())
-                    self.papelera = config.get("papelera", os.path.join(os.getcwd(), "Papelera_Fuentes"))
-            except Exception:
-                self.ruta_reporte = os.getcwd()
-                self.papelera = os.path.join(os.getcwd(), "Papelera_Fuentes")
-        else:
-            self.ruta_reporte = os.getcwd()
-            self.papelera = os.path.join(os.getcwd(), "Papelera_Fuentes")
-    #--------------------- Fin Ventana Configuracion -----------------------------
-                                
+                    c = json.load(f)
+                    self.ruta_reporte = c.get("ruta_reporte", self.ruta_reporte)
+                    self.papelera = c.get("papelera", self.papelera)
+            except Exception: pass
       
     def filtrar_fuentes(self):
         query = self.search_var.get().lower()
         filtro_estado = self.filtro_estado_var.get()
         coleccion_activa = self.coleccion_var.get()
         
-        for i in self.tree.get_children():
-            self.tree.delete(i)
+        for i in self.tree.get_children(): self.tree.delete(i)
             
         for nombre, estado, ruta in self.all_items:
-            cumple_query = query in nombre.lower()
-            cumple_estado = (filtro_estado == "Todas") or (
-                (filtro_estado == "Instaladas" and estado == "Instalada") or
-                (filtro_estado == "Temporales" and estado == "Temporal") or
-                (filtro_estado == "No Instaladas" and estado == "No Instalada")
-            )
-            cumple_coleccion = (coleccion_activa == "Todas") or (ruta in self.colecciones.get(coleccion_activa, []))
-            
-            if cumple_query and cumple_estado and cumple_coleccion:
-                tag = "normal"
-                if estado == "Instalada": tag = "instalada"
-                elif estado == "Temporal": tag = "temporal"
-                self.tree.insert("", "end", values=(nombre, estado, ruta), tags=(tag,))
+            if query in nombre.lower():
+                cumple_estado = (filtro_estado == "Todas") or (filtro_estado[:-1] in estado)
+                cumple_col = (coleccion_activa == "Todas") or (ruta in self.colecciones.get(coleccion_activa, []))
+                if cumple_estado and cumple_col:
+                    tag = "instalada" if estado == "Instalada" else ("temporal" if estado == "Temporal" else "normal")
+                    self.tree.insert("", "end", values=(nombre, estado, ruta), tags=(tag,))
                 
     def desactivar_todas_las_temporales(self):
-        if not self.fuentes_temporales:
-            messagebox.showinfo("Limpiar Memoria", "No hay fuentes temporales cargadas en la memoria para desactivar.")
-            return
-
-        cant_fuentes = len(self.fuentes_temporales)
-        rutas_a_remover = list(self.fuentes_temporales)
-        removidas_con_exito = 0
-        
-        for path in rutas_a_remover:
-            resultado = ctypes.windll.gdi32.RemoveFontResourceW(path)
-            if resultado != 0:
+        if not self.fuentes_temporales: return
+        for path in list(self.fuentes_temporales):
+            if ctypes.windll.gdi32.RemoveFontResourceW(path) != 0:
                 self.fuentes_temporales.discard(path)
                 self.actualizar_item_maestro(path, "No Instalada")
-                removidas_con_exito += 1
-
         ctypes.windll.user32.SendMessageW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0)
         self.filtrar_fuentes()
-        messagebox.showinfo("Exito", f"Se han liberado y desactivado {removidas_con_exito} de {cant_fuentes} fuentes de la memoria.")
     
     def cargar_colecciones(self):
         if os.path.exists("colecciones.json"):
-            with open("colecciones.json", "r", encoding="utf-8") as f:
-                return json.load(f)
+            with open("colecciones.json", "r", encoding="utf-8") as f: return json.load(f)
         return {}
 
     def guardar_colecciones(self):
-        with open("colecciones.json", "w", encoding="utf-8") as f:
-            json.dump(self.colecciones, f, indent=4)
+        with open("colecciones.json", "w", encoding="utf-8") as f: json.dump(self.colecciones, f, indent=4)
 
     def anadir_a_coleccion(self):
         seleccion = self.tree.selection()
-        if not seleccion:
-            messagebox.showwarning("Seleccion", "Por favor, selecciona al menos una fuente.")
-            return
-        
-        win = self._preparar_modal("Anadir a Coleccion", 320, 180)
-        tk.Label(win, text="Selecciona o escribe una coleccion:", font=("Arial", 10)).pack(pady=10)
-        
-        colecciones_disponibles = list(self.colecciones.keys())
-        cb = ttk.Combobox(win, values=colecciones_disponibles, state="normal")
-        cb.pack(pady=5)
-        if colecciones_disponibles:
-            cb.current(0)
-        
-        def confirmar():
-            nombre = cb.get().strip()
-            if not nombre:
-                messagebox.showerror("Error", "Debes ingresar un nombre de coleccion.", parent=win)
-                return
-            
-            if nombre not in self.colecciones:
-                self.colecciones[nombre] = []
+        if not seleccion: return
+        win = self._preparar_modal("Añadir a Colección", 320, 180)
+        cb = ttk.Combobox(win, values=list(self.colecciones.keys()))
+        cb.pack(pady=20)
+        def conf():
+            n = cb.get().strip()
+            if n:
+                if n not in self.colecciones: self.colecciones[n] = []
+                for i in seleccion:
+                    r = self.tree.item(i, "values")[2]
+                    if r not in self.colecciones[n]: self.colecciones[n].append(r)
+                self.guardar_colecciones()
                 self.actualizar_combobox_colecciones()
-            
-            for item in seleccion:
-                valores = self.tree.item(item, "values")
-                if valores:
-                    ruta = valores[2]
-                    if ruta not in self.colecciones[nombre]:
-                        self.colecciones[nombre].append(ruta)
-            
-            self.guardar_colecciones()
-            messagebox.showinfo("Exito", f"Fuentes anadidas a '{nombre}'", parent=win)
-            win.destroy()
-            self.filtrar_fuentes()
-            
-        btn = tk.Button(win, text="Aceptar", command=confirmar, bg="#d4edda")
-        btn.pack(pady=10)
+                win.destroy()
+        tk.Button(win, text="Aceptar", command=conf, bg="#d4edda").pack()
 
     def actualizar_combobox_colecciones(self):
-        lista = ["Todas"] + list(self.colecciones.keys())
-        self.cb_coleccion['values'] = lista
-
-    def seleccionar_ruta_seguro(self, win, entry_widget):
-        win.grab_release()
-        nueva_ruta = filedialog.askdirectory(title="Seleccionar Carpeta", parent=win)
-        win.grab_set()
-        
-        if nueva_ruta:
-            entry_widget.delete(0, tk.END)
-            entry_widget.insert(0, nueva_ruta)
-                                          
+        self.cb_coleccion['values'] = ["Todas"] + list(self.colecciones.keys())
 
     def abrir_ventana_crud_colecciones(self):
-        win = self._preparar_modal("Gestion de Colecciones", 800, 500)
+        win = self._preparar_modal("Gestión de Colecciones", 800, 500)
         main_paned = tk.PanedWindow(win, orient=tk.HORIZONTAL, sashrelief=tk.RAISED)
         main_paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         left_frame = tk.Frame(main_paned)
         main_paned.add(left_frame, width=280)
-        
-        tk.Label(left_frame, text="Colecciones Existentes", font=("Arial", 10, "bold")).pack(anchor="w", pady=(0, 5))
-        
-        list_scroll = ttk.Scrollbar(left_frame, orient="vertical")
-        list_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        lb_colecciones = tk.Listbox(left_frame, font=("Arial", 10), yscrollcommand=list_scroll.set)
+        lb_colecciones = tk.Listbox(left_frame, font=("Arial", 10))
         lb_colecciones.pack(fill=tk.BOTH, expand=True)
-        list_scroll.config(command=lb_colecciones.yview)
         
         right_frame = tk.Frame(main_paned)
         main_paned.add(right_frame, width=500)
+        tree_fuentes = self.crear_tabla(right_frame, "Fuentes de la Colección", ["Nombre", "Ubicación"])
         
-        tree_fuentes = self.crear_tabla(right_frame, "Fuentes de la Coleccion Seleccionada", ["Nombre del Archivo", "Ubicacion Completa"])
-        
-        def refrescar_lista_colecciones():
+        def ref():
             lb_colecciones.delete(0, tk.END)
-            for col_name in sorted(self.colecciones.keys()):
-                lb_colecciones.insert(tk.END, col_name)
-            tree_fuentes.delete(*tree_fuentes.get_children())
-                
-        refrescar_lista_colecciones()
+            for k in sorted(self.colecciones.keys()): lb_colecciones.insert(tk.END, k)
+        ref()
         
-        def on_coleccion_select(event):
-            selection = lb_colecciones.curselection()
-            if not selection:
-                return
-            col_name = lb_colecciones.get(selection[0])
-            tree_fuentes.delete(*tree_fuentes.get_children())
-            
-            rutas = self.colecciones.get(col_name, [])
-            for r in rutas:
-                tree_fuentes.insert("", "end", values=(os.path.basename(r), r))
-                
-        lb_colecciones.bind("<<ListboxSelect>>", on_coleccion_select)
+        lb_colecciones.bind("<<ListboxSelect>>", lambda e: [
+            tree_fuentes.delete(*tree_fuentes.get_children()),
+            [tree_fuentes.insert("", "end", values=(os.path.basename(r), r)) for r in self.colecciones.get(lb_colecciones.get(lb_colecciones.curselection()[0]), [])] if lb_colecciones.curselection() else None
+        ])
         
-        left_buttons = tk.Frame(left_frame, pady=5)
-        left_buttons.pack(fill=tk.X)
-        
-        def crud_crear():
-            nombre = simpledialog.askstring("Nueva Coleccion", "Escribe el nombre de la nueva coleccion:", parent=win)
-            if nombre and nombre.strip():
-                nombre = nombre.strip()
-                if nombre in self.colecciones:
-                    messagebox.showerror("Error", "La coleccion ya existe.", parent=win)
-                    return
-                self.colecciones[nombre] = []
+        def nueva():
+            n = simpledialog.askstring("Nueva", "Nombre:", parent=win)
+            if n and n.strip() not in self.colecciones:
+                self.colecciones[n.strip()] = []
                 self.guardar_colecciones()
                 self.actualizar_combobox_colecciones()
-                refrescar_lista_colecciones()
-                try:
-                    idx = list(lb_colecciones.get(0, tk.END)).index(nombre)
-                    lb_colecciones.selection_set(idx)
-                    lb_colecciones.event_generate("<<ListboxSelect>>")
-                except ValueError:
-                    pass
-                
-        def crud_renombrar():
-            selection = lb_colecciones.curselection()
-            if not selection:
-                messagebox.showwarning("Atencion", "Selecciona una coleccion para renombrar.", parent=win)
-                return
-            viejo_nombre = lb_colecciones.get(selection[0])
-            nuevo_nombre = simpledialog.askstring("Renombrar Coleccion", f"Modifica el nombre para '{viejo_nombre}':", initialvalue=viejo_nombre, parent=win)
-            
-            if nuevo_nombre and nuevo_nombre.strip() and nuevo_nombre.strip() != viejo_nombre:
-                nuevo_nombre = nuevo_nombre.strip()
-                if nuevo_nombre in self.colecciones:
-                    messagebox.showerror("Error", "Ese nombre de coleccion ya esta en uso.", parent=win)
-                    return
-                self.colecciones[nuevo_nombre] = self.colecciones.pop(viejo_nombre)
-                self.guardar_colecciones()
-                self.actualizar_combobox_colecciones()
-                refrescar_lista_colecciones()
-                
-        def crud_eliminar():
-            selection = lb_colecciones.curselection()
-            if not selection:
-                messagebox.showwarning("Atencion", "Selecciona una coleccion para eliminar.", parent=win)
-                return
-            col_name = lb_colecciones.get(selection[0])
-            if messagebox.askyesno("Confirmar", f"Estas seguro de eliminar la coleccion '{col_name}'?\n(Las fuentes fisicas NO seran eliminadas de tu disco).", parent=win):
-                self.colecciones.pop(col_name, None)
-                self.guardar_colecciones()
-                self.actualizar_combobox_colecciones()
-                refrescar_lista_colecciones()
-                if self.coleccion_var.get() == col_name:
-                    self.coleccion_var.set("Todas")
-                self.filtrar_fuentes()
+                ref()
+        tk.Button(left_frame, text="Nueva", command=nueva, bg="#d4edda").pack(side=tk.LEFT)
 
-        tk.Button(left_buttons, text="Nueva", command=crud_crear, bg="#d4edda", width=8).pack(side=tk.LEFT, padx=2)
-        tk.Button(left_buttons, text="Renombrar", command=crud_renombrar, bg="#ffe8cc", width=10).pack(side=tk.LEFT, padx=2)
-        tk.Button(left_buttons, text="Borrar", command=crud_eliminar, bg="#f8d7da", width=8).pack(side=tk.LEFT, padx=2)
-        
-        right_buttons = tk.Frame(right_frame, pady=5)
-        right_buttons.pack(fill=tk.X)
-        
-        def crud_quitar_fuente():
-            selection_lb = lb_colecciones.curselection()
-            selection_tree = tree_fuentes.selection()
-            if not selection_lb or not selection_tree:
-                messagebox.showwarning("Atencion", "Selecciona una coleccion y una o mas fuentes de la lista de la derecha para quitarlas.", parent=win)
-                return
-                
-            col_name = lb_colecciones.get(selection_lb[0])
-            if messagebox.askyesno("Confirmar", f"Quitar las {len(selection_tree)} fuentes seleccionadas de la coleccion '{col_name}'?", parent=win):
-                for item in selection_tree:
-                    valores = tree_fuentes.item(item, "values")
-                    if valores:
-                        ruta_fuente = valores[1]
-                        if ruta_fuente in self.colecciones.get(col_name, []):
-                            self.colecciones[col_name].remove(ruta_fuente)
-                            
-                self.guardar_colecciones()
-                lb_colecciones.event_generate("<<ListboxSelect>>")
-                self.filtrar_fuentes()
-                
-        tk.Button(right_buttons, text="Quitar Fuentes de la Coleccion", command=crud_quitar_fuente, bg="#ffcccb").pack(side=tk.LEFT, pady=2)
-        tk.Button(right_buttons, text="Salir / Cancelar", command=win.destroy, bg="#e2e8f0", width=14).pack(side=tk.RIGHT, padx=10, pady=2)
 
 if __name__ == "__main__":
     root = tk.Tk()

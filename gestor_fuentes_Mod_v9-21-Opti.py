@@ -158,7 +158,7 @@ class FontManagerApp:
         self.cb_filtro_estado.pack(side=tk.LEFT, padx=5)
         self.cb_filtro_estado.bind("<<ComboboxSelected>>", lambda e: self.filtrar_fuentes())
         
-        tk.Label(search_frame, text="Coleccion:").pack(side=tk.LEFT, padx=(10, 5))
+        tk.Label(search_frame, text="Colección:").pack(side=tk.LEFT, padx=(10, 5))
         self.coleccion_var = tk.StringVar(value="Todas")
         self.colecciones = self.cargar_colecciones()
         self.cb_coleccion = ttk.Combobox(search_frame, textvariable=self.coleccion_var, values=["Todas"] + list(self.colecciones.keys()), state="readonly", width=15)
@@ -209,7 +209,7 @@ class FontManagerApp:
         self.btn_mode = tk.Button(basic_group, text="Modo Claro", command=self.toggle_preview_mode, width=12, bg="#f1f5f9")
         self.btn_mode.pack(side=tk.LEFT, padx=5)
 
-        adv_group = tk.LabelFrame(preview_top_bar, text="Personalizacion Avanzada", padx=5, pady=2)
+        adv_group = tk.LabelFrame(preview_top_bar, text="Personalización Avanzada", padx=5, pady=2)
         adv_group.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
         lbl_a_small = tk.Label(adv_group, text="A", font=("Arial", 8))
@@ -320,6 +320,8 @@ class FontManagerApp:
         else:
             self.info_panel_frame.pack_forget()
 
+    #---------------------Inicio Reporte ----------------------------------
+
     def exportar_reporte(self):
         if not self.all_items:
             messagebox.showwarning("Atencion", "No hay datos para exportar. Por favor, realice un analisis analizando una carpeta primero.")
@@ -421,7 +423,8 @@ class FontManagerApp:
             messagebox.showinfo("Exito", f"Reporte generado con exito!\n\nGuardado en:\n{file_path}")
         except Exception as e:
             messagebox.showerror("Error de Escritura", f"No se pudo guardar el archivo del reporte:\n{e}")
-
+    #---------------------Fin Reporte ----------------------------------
+    
     def seleccionar_fuentes_sistema(self):
         ruta_sistema = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 'Fonts', '')
         self.path_entry.delete(0, tk.END)
@@ -1013,7 +1016,9 @@ class FontManagerApp:
                 messagebox.showerror("Error", "No se encontro el archivo fisico in la papelera.", parent=win)
 
         tk.Button(win, text="Restaurar Seleccion", command=restaurar_seleccion, bg="#d4edda").pack(pady=10)
-        
+     
+    #--------------------- Inicio Ventana Configuracion -----------------------------
+     
     def abrir_ventana_configuracion(self):
         win = self._preparar_modal("Configuracion General", 600, 250)
         win.columnconfigure(1, weight=1)
@@ -1071,7 +1076,9 @@ class FontManagerApp:
         else:
             self.ruta_reporte = os.getcwd()
             self.papelera = os.path.join(os.getcwd(), "Papelera_Fuentes")
-      
+
+    #--------------------- Fin Ventana Configuracion -----------------------------
+ 
     def filtrar_fuentes(self):
         query = self.search_var.get().lower()
         filtro_estado = self.filtro_estado_var.get()
