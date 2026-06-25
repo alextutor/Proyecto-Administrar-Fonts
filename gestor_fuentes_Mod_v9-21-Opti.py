@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 
+# Adición al Plan de Diseño:
+# Modificación: En la barra superior de filtros, justo al lado del combobox de Colección, añadiremos un botón pequeño con tres puntos (...).
+# Acción: Este botón llamará directamente a la función self.abrir_ventana_crud_colecciones, permitiéndote crear, renombrar o borrar colecciones de forma inmediata sin tener que ir hasta el menú superior de configuración.
+# Resumen del Plan de Cambios Completo (Para tu Luz Verde 🟢):
+# Panel de Vista Previa (Derecha):
+# Quitar la etiqueta de texto "Tamaño:" y dejar solo el combobox numérico.
+# Grupo Personalización Avanzada:
+# Quitar la palabra "Ajuste:".
+# Agregar una etiqueta "A" pequeña (fuente tamaño 9) al inicio del slider.
+# Agregar una etiqueta "A" grande (fuente tamaño 16, en negrita) al final del slider.
+# Diseñar los botones de Texto, Fondo, Invertir y Default usando iconos de caracteres Unicode de alta compatibilidad (como 🎨, 🪣, 🔄, 🔁) o prepararlos para recibir imágenes PNG para que luzcan idénticos a los de tu referencia.
+# Filtro de Colecciones (Buscador):
+# Colocar el botón ... inmediatamente a la derecha del combo de colecciones para abrir el CRUD directamente.
+
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, colorchooser, simpledialog
 import threading, os, hashlib, shutil, json, sys
@@ -50,27 +64,25 @@ def obtener_nombre_real_fuente(ruta_archivo):
         except Exception:
             pass
 
-    # SEGUNDO RESPALDO: Usar Pillow si fontTools no está o falla (Muy robusto para nombres comerciales)
+    # SEGUNDO RESPALDO: Usar Pillow si fontTools no está o falla
     try:
         pil_font = ImageFont.truetype(ruta_archivo, 12)
         familia, estilo = pil_font.getname()
-        # Si el estilo es 'Regular', mostramos solo la familia, de lo contrario unimos ambos
         if estilo.lower() == 'regular':
             return familia
         return f"{familia} {estilo}"
     except Exception:
         pass
 
-    # Último recurso: Limpiar el nombre del archivo físico
     return os.path.splitext(os.path.basename(ruta_archivo))[0]
 #-------------------------------------------------------------------
 
 class FontManagerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Gestor Profesional de Fuentes - V20.1")
+        self.root.title("Gestor Profesional de Fuentes - V20.2")
         
-        ancho = 1350 
+        ancho = 1380 
         alto = 850
         
         pantalla_ancho = self.root.winfo_screenwidth()
@@ -150,8 +162,11 @@ class FontManagerApp:
         self.coleccion_var = tk.StringVar(value="Todas")
         self.colecciones = self.cargar_colecciones()
         self.cb_coleccion = ttk.Combobox(search_frame, textvariable=self.coleccion_var, values=["Todas"] + list(self.colecciones.keys()), state="readonly", width=15)
-        self.cb_coleccion.pack(side=tk.LEFT, padx=5)
+        self.cb_coleccion.pack(side=tk.LEFT, padx=2)
         self.cb_coleccion.bind("<<ComboboxSelected>>", lambda e: self.filtrar_fuentes())
+        
+        self.btn_crud_directo = tk.Button(search_frame, text="...", command=self.abrir_ventana_crud_colecciones, font=("Arial", 9, "bold"), bg="#e2e8f0", width=3, relief="groove")
+        self.btn_crud_directo.pack(side=tk.LEFT, padx=(0, 5))
 
         paned = tk.PanedWindow(root, orient=tk.VERTICAL, sashrelief=tk.RAISED)
         paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -162,7 +177,7 @@ class FontManagerApp:
         h_paned.pack(fill=tk.BOTH, expand=True)
         
         list_frame = tk.Frame(h_paned)
-        h_paned.add(list_frame, width=550)
+        h_paned.add(list_frame, width=520)
         self.tree = self.crear_tabla(list_frame, "Fuentes", ["Nombre", "Estado", "Ruta"], scroll_x=True)
         
         self.tree.tag_configure("instalada", background="#d4edda", foreground="#155724")
@@ -173,7 +188,7 @@ class FontManagerApp:
         self.tree.bind("<<TreeviewSelect>>", lambda e: self.show_details(self.tree))
 
         preview_frame = tk.Frame(h_paned)
-        h_paned.add(preview_frame, width=800)
+        h_paned.add(preview_frame, width=830)
         
         preview_top_bar = tk.Frame(preview_frame, pady=2)
         preview_top_bar.pack(fill=tk.X, anchor="w")
@@ -187,34 +202,38 @@ class FontManagerApp:
         self.custom_text_entry.pack(side=tk.LEFT, padx=5)
         self.custom_text_entry.bind("<KeyRelease>", lambda e: self.show_details(self.tree))
 
-        tk.Label(basic_group, text="Tamano:", font=("Arial", 9)).pack(side=tk.LEFT, padx=(5, 2))
-        self.cb_size = ttk.Combobox(basic_group, textvariable=self.font_size_var, values=[12, 16, 20, 24, 28, 32, 36, 42, 48, 56, 72, 96, 120], state="readonly", width=4)
+        self.cb_size = ttk.Combobox(basic_group, textvariable=self.font_size_var, values=[12, 16, 20, 24, 28, 32, 36, 42, 48, 56, 72, 96, 120], state="readonly", width=5)
         self.cb_size.pack(side=tk.LEFT, padx=2)
         self.cb_size.bind("<<ComboboxSelected>>", lambda e: self.show_details(self.tree))
 
-        self.btn_mode = tk.Button(basic_group, text="Modo Claro", command=self.toggle_preview_mode, width=10, bg="#f1f5f9")
+        self.btn_mode = tk.Button(basic_group, text="Modo Claro", command=self.toggle_preview_mode, width=12, bg="#f1f5f9")
         self.btn_mode.pack(side=tk.LEFT, padx=5)
 
         adv_group = tk.LabelFrame(preview_top_bar, text="Personalizacion Avanzada", padx=5, pady=2)
         adv_group.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
 
-        tk.Label(adv_group, text="Ajuste:", font=("Arial", 8)).pack(side=tk.LEFT)
-        self.slider_size = ttk.Scale(adv_group, from_=10, to=100, orient=tk.HORIZONTAL, variable=self.font_size_var, command=lambda e: self.show_details(self.tree))
+        lbl_a_small = tk.Label(adv_group, text="A", font=("Arial", 8))
+        lbl_a_small.pack(side=tk.LEFT, padx=(2, 0))
+
+        self.slider_size = ttk.Scale(adv_group, from_=10, to=150, orient=tk.HORIZONTAL, variable=self.font_size_var, command=lambda e: self.show_details(self.tree))
         self.slider_size.pack(side=tk.LEFT, padx=5)
 
-        self.btn_color_text = tk.Button(adv_group, text="Texto", command=self.choose_text_color, bg="#e2e8f0", width=6)
-        self.btn_color_text.pack(side=tk.LEFT, padx=2)
+        lbl_a_large = tk.Label(adv_group, text="A", font=("Arial", 14, "bold"))
+        lbl_a_large.pack(side=tk.LEFT, padx=(0, 8))
 
-        self.btn_color_bg = tk.Button(adv_group, text="Fondo", command=self.choose_bg_color, bg="#e2e8f0", width=6)
+        # CORREGIDO: Se elimina el atributo erróneo title="..."
+        self.btn_color_text = tk.Button(adv_group, text="🅰️", font=("Segoe UI Emoji", 10), command=self.choose_text_color, bg="#e2e8f0", width=4)
+        self.btn_color_text.pack(side=tk.LEFT, padx=2)
+       
+        self.btn_color_bg = tk.Button(adv_group, text="🎨", font=("Segoe UI Emoji", 10), command=self.choose_bg_color, bg="#e2e8f0", width=4)
         self.btn_color_bg.pack(side=tk.LEFT, padx=2)
 
-        self.btn_invert = tk.Button(adv_group, text="Invertir", command=self.invert_colors, bg="#e2e8f0")
+        self.btn_invert = tk.Button(adv_group, text="⇄", font=("Segoe UI Emoji", 10), command=self.invert_colors, bg="#e2e8f0", width=4)
         self.btn_invert.pack(side=tk.LEFT, padx=2)
 
-        self.btn_default = tk.Button(adv_group, text="Default", command=self.default_colors, bg="#e2e8f0")
+        self.btn_default = tk.Button(adv_group, text="↺", font=("Segoe UI Emoji", 10), command=self.default_colors, bg="#e2e8f0", width=4)
         self.btn_default.pack(side=tk.LEFT, padx=2)
 
-        # SOLUCIÓN PROBLEMA 2: Se añade anchor="w" para alinear la imagen estrictamente a la izquierda del contenedor
         self.preview_lbl = tk.Label(preview_frame, text="Selecciona una fuente", bg="white", relief="sunken", anchor="w")
         self.preview_lbl.pack(fill=tk.BOTH, expand=True, pady=5)
 
@@ -920,12 +939,10 @@ class FontManagerApp:
                 self.txt_info.insert(tk.END, meta_datos)
                 self.txt_info.config(state=tk.DISABLED)
           
-    # SOLUCIÓN PROBLEMA 2: Ajuste del renderizado de la imagen y margen para evitar recortes izquierdos
     def generar_preview(self, font_path):
         bg_color = self.current_bg_color
         text_color = self.current_text_color
         
-        # Mantenemos un lienzo amplio
         img = Image.new('RGB', (950, 200), color=bg_color)
         draw = ImageDraw.Draw(img)
         
@@ -936,7 +953,6 @@ class FontManagerApp:
         try:
             font_size = int(self.font_size_var.get())
             font = ImageFont.truetype(font_path, font_size)
-            # Desplazamos el inicio X a 25 píxeles para asegurar un margen seguro y que ninguna letra quede pegada
             draw.text((25, 100 - (font_size // 2)), text, fill=text_color, font=font)
         except Exception:
             font_default = ImageFont.load_default()
