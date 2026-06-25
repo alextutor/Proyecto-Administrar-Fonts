@@ -22,3 +22,8 @@ Preparar Modal
 def abrir_ventana_configuracion(self):
         win = self._preparar_modal("Configuración General", 600, 250)
         win.columnconfigure(1, weight=1)
+
+Boton Salir
+--------------------------------------
+
+tk.Button(right_buttons, text="Salir / Cancelar", command=win.destroy, bg="#e2e8f0", width=14).pack(side=tk.LEFT, padx=10, pady=2)

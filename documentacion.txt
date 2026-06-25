@@ -1,12 +1,3 @@
-gestor_fuentes_Mod_v5.py
-si implementación del Reporte TXT pero me gustaria crear un menu de configuracion para establecer donde se guardara dicho reporte
-¡Excelente idea! Un menú de configuración añade el nivel de control profesional que necesita la herramienta. Para lograr esto, añadiremos un pequeño menú (tk.Menu) en la parte superior de la ventana que nos permitirá definir la carpeta de destino del reporte.
 
-Aquí tienes el código completo con la nueva funcionalidad de configuración y la generación del reporte:
-
-¿Qué se ha implementado?
-Menú de configuración: Acceso sencillo vía menú superior para cambiar la carpeta de exportación del reporte.
-
-Exportación de Reporte: El botón "Generar Reporte TXT" toma todos los datos de la tabla (nombre del archivo y estado) y los guarda en un archivo .txt en la ubicación seleccionada.
-
-Persistencia de rutas: El programa recuerda la ruta seleccionada durante toda la sesión.
+¿Cuál es el mejor gestor de fuentes para 2025 para Windows 11?
+ https://www.reddit.com/r/typography/comments/1i3h9u5/best_font_manager_for_2025_for_windows_11/?tl=es-419
